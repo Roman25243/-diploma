@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block content %}
+<!-- Герой-секція -->
+<div class="bg-dark text-white py-5 mb-5" style="background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://via.placeholder.com/1920x800') center/cover no-repeat;">
+    <div class="container text-center py-5">
+        <h1 class="display-4 fw-bold">Ласкаво просимо до нашого кінотеатру</h1>
+        <p class="lead mb-4">Бронюйте квитки онлайн з комфортом</p>
+        <a href="{{ url_for('films') }}" class="btn btn-danger btn-lg">Переглянути афішу</a>
+    </div>
+</div>
+
+<!-- Популярні фільми -->
+<div class="container mb-5">
+    <h2 class="text-center mb-4">Популярні фільми зараз</h2>
+    <div class="row">
+        {% for film in popular_films %}
+        <div class="col-md-3 mb-4">
+            <div class="card h-100 shadow-sm border-0">
+                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}" style="height: 350px; object-fit: cover;">
+                <div class="card-body text-center">
+                    <h5 class="card-title">{{ film.title }}</h5>
+                    <a href="{{ url_for('film_detail', film_id=film.id) }}" class="btn btn-primary">Детальніше</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Переваги -->
+<div class="bg-light py-5">
+    <div class="container">
+        <h2 class="text-center mb-5">Чому обирають нас</h2>
+        <div class="row text-center">
+            <div class="col-md-4">
+                <div class="mb-4">
+                    <h4>Зручне бронювання</h4>
+                    <p>Обирайте місця онлайн з будь-якого пристрою</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-4">
+                    <h4>Електронні квитки</h4>
+                    <p>Отримуйте QR-код на email — без черг</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-4">
+                    <h4>Найкращі ціни</h4>
+                    <p>Акції та знижки для постійних клієнтів</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-center mb-5">Особистий кабінет</h1>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <p><strong>Ім'я:</strong> {{ current_user.name }}</p>
+        <p><strong>Email:</strong> {{ current_user.email }}</p>
+    </div>
+</div>
+
+<h3 class="mt-4">Мої бронювання</h3>
+
+{% if bookings %}
+<div class="row">
+    {% for booking in bookings %}
+    <div class="col-md-6 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">{{ booking.seat.session.film.title }}</h5>
+                <p><strong>Сеанс:</strong> {{ booking.seat.session.start_time }}</p>
+                <p><strong>Місце:</strong> ряд {{ booking.seat.row }}, номер {{ booking.seat.number }}</p>
+                <p><strong>Ціна:</strong> {{ booking.seat.session.price }} грн</p>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="alert alert-info">
+    У вас ще немає бронювань. <a href="{{ url_for('index') }}">Оберіть фільм і забронюйте місця!</a>
+</div>
+{% endif %}
+
+{% endblock %}

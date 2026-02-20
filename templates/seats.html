@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-center mb-4">{{ session.film.title }} — {{ session.start_time }}</h1>
+<h3 class="text-center text-muted mb-5">Ціна: {{ session.price }} грн</h3>
+
+<div class="screen mb-5">ЕКРАН</div>
+
+<form method="POST">
+    <div class="seats-grid">
+        {% for seat in seats %}
+        <button type="button" class="seat {{ 'booked' if seat.status == 'booked' else 'free' }}"
+                {% if seat.status =='booked' %}disabled{% endif %}
+                onclick="toggleSeat(this, {{ seat.id }})">
+            {{ seat.row }}-{{ seat.number }}
+        </button>
+        {% endfor %}
+    </div>
+
+    <div class="text-center mt-5">
+        <p><strong>Вибрано місць:</strong> <span id="count">0</span></p>
+        <button type="submit" class="btn btn-success btn-lg" id="book-btn" disabled>Забронювати</button>
+    </div>
+</form>
+
+<script>
+let selected = [];
+function toggleSeat(btn, id) {
+    if (btn.classList.contains('booked')) return;
+    if (btn.classList.contains('selected')) {
+        btn.classList.remove('selected');
+        selected = selected.filter(s => s !== id);
+    } else {
+        btn.classList.add('selected');
+        selected.push(id);
+    }
+    document.getElementById('count').textContent = selected.length;
+    document.getElementById('book-btn').disabled = selected.length === 0;
+
+    // Додаємо приховані поля для відправки
+    let form = btn.closest('form');
+    form.innerHTML = form.innerHTML; // очищаємо старі
+    selected.forEach(s => {
+        let input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'seat';
+        input.value = s;
+        form.appendChild(input);
+    });
+}
+</script>
+
+<style>
+    .seat.selected { background-color: #0d6efd; }
+</style>
+{% endblock %}

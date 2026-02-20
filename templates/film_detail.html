@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<h1 class="text-center">{{ film.title }}</h1>
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="img-fluid rounded mb-4" alt="{{ film.title }}">
+        <p class="lead">{{ film.description }}</p>
+
+        {% if film.trailer %}
+        <h4>Трейлер</h4>
+        <div class="ratio ratio-16x9 mb-5">
+            <iframe src="{{ film.trailer.replace('watch?v=', 'embed/') }}" title="Трейлер {{ film.title }}" allowfullscreen></iframe>
+        </div>
+        {% endif %}
+
+        <h3>Доступні сеанси</h3>
+        {% if sessions %}
+        <ul class="list-group">
+            {% for session in sessions %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ session.start_time }} — {{ session.price }} грн
+                <a href="{{ url_for('seats', session_id=session.id) }}" class="btn btn-success">Обрати місця</a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>Наразі немає сеансів для цього фільму.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

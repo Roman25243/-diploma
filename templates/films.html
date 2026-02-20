@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h1 class="text-center mb-4">Афіша фільмів</h1>
+
+    <!-- Пошук -->
+    <div class="row mb-4">
+        <div class="col-md-6 offset-md-3">
+            <form method="GET" action="{{ url_for('films') }}">
+                <div class="input-group">
+                    <input type="text" name="q" class="form-control" placeholder="Пошук за назвою або описом..." value="{{ search_query or '' }}">
+                    <button class="btn btn-outline-secondary" type="submit">Шукати</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if films %}
+    <div class="row">
+        {% for film in films %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if film.image %}
+                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}" style="height: 400px; object-fit: cover;">
+                {% else %}
+                <img src="{{ url_for('static', filename='placeholder.jpg') }}" class="card-img-top" alt="Немає зображення" style="height: 400px; object-fit: cover; background-color: #e9ecef;">
+                {% endif %}
+                <div class="card-body d-flex flex-column">
+                    <h5 class="card-title">{{ film.title }}</h5>
+                    <p class="card-text flex-grow-1">
+                        {% if film.description %}
+                        {{ film.description[:150] }}{% if film.description|length > 150 %}...{% endif %}
+                        {% else %}
+                        Опис відсутній.
+                        {% endif %}
+                    </p>
+                    <a href="{{ url_for('film_detail', film_id=film.id) }}" class="btn btn-primary mt-auto">Сеанси та квитки</a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        {% if search_query %}
+        За запитом "{{ search_query }}" нічого не знайдено.
+        {% else %}
+        Фільмів ще немає.
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
