@@ -254,6 +254,28 @@ def admin_films():
     films = Film.query.all()
     return render_template('admin/films.html', films=films)
 
+@app.route('/cancel_booking/<int:booking_id>', methods=['POST'])
+@login_required
+def cancel_booking(booking_id):
+    booking = Booking.query.get_or_404(booking_id)
+
+    # Перевірка що це бронювання поточного користувача
+    if booking.user_id != current_user.id and not current_user.is_admin:
+        flash('У вас немає прав для скасування цього бронювання', 'danger')
+        return redirect(url_for('profile'))
+
+    # Звільняємо місце
+    seat = booking.seat
+    seat.status = 'free'
+
+    db.session.delete(booking)
+    db.session.commit()
+
+    flash('Бронювання успішно скасовано', 'success')
+    return redirect(url_for('profile'))
+
+
+
 @app.route('/admin/sessions', methods=['GET', 'POST'])
 @login_required
 def admin_sessions():
@@ -279,3 +301,4 @@ def admin_sessions():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
