@@ -21,6 +21,15 @@
                 <p><strong>Сеанс:</strong> {{ booking.seat.session.start_time }}</p>
                 <p><strong>Місце:</strong> ряд {{ booking.seat.row }}, номер {{ booking.seat.number }}</p>
                 <p><strong>Ціна:</strong> {{ booking.seat.session.price }} грн</p>
+
+                <form method="POST" action="{{ url_for('cancel_booking', booking_id=booking.id) }}">
+                    <button type="submit"
+                            class="btn btn-danger btn-sm mt-2"
+                            onclick="return confirm('Ви впевнені, що хочете скасувати бронювання?')">
+                        Скасувати бронювання
+                    </button>
+                </form>
+
             </div>
         </div>
     </div>
@@ -28,7 +37,8 @@
 </div>
 {% else %}
 <div class="alert alert-info">
-    У вас ще немає бронювань. <a href="{{ url_for('index') }}">Оберіть фільм і забронюйте місця!</a>
+    У вас ще немає бронювань.
+    <a href="{{ url_for('index') }}">Оберіть фільм і забронюйте місця!</a>
 </div>
 {% endif %}
 
