@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="error-template">
+                <h1 class="display-1 text-info">405</h1>
+                <h2 class="mb-4">Метод не дозволено</h2>
+                <p class="lead text-muted mb-5">
+                    HTTP метод, який ви використовуєте, не підтримується для цього ресурсу.
+                </p>
+                <div class="alert alert-info">
+                    <strong>Технічна інформація:</strong>
+                    <p class="mb-0 mt-2">
+                        Сервер розуміє запит, але не може його обробити через неправильний HTTP метод.
+                    </p>
+                </div>
+                <div class="error-actions mt-4">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-info btn-lg me-3">
+                        <i class="bi bi-house-door"></i> На головну
+                    </a>
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Назад
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .error-template {
+        padding: 40px 15px;
+    }
+    .display-1 {
+        font-size: 8rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}

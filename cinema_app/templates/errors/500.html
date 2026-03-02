@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="error-template">
+                <h1 class="display-1 text-warning">500</h1>
+                <h2 class="mb-4">Внутрішня помилка сервера</h2>
+                <p class="lead text-muted mb-5">
+                    Вибачте, щось пішло не так на нашому сервері. 
+                    Ми вже працюємо над вирішенням проблеми.
+                </p>
+                <div class="alert alert-info">
+                    <strong>Що робити?</strong>
+                    <ul class="list-unstyled mt-3 mb-0">
+                        <li>✓ Спробуйте оновити сторінку через кілька хвилин</li>
+                        <li>✓ Або поверніться на головну сторінку</li>
+                        <li>✓ Якщо проблема повторюється, зв'яжіться з нами</li>
+                    </ul>
+                </div>
+                <div class="error-actions mt-4">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-warning btn-lg me-3">
+                        <i class="bi bi-house-door"></i> На головну
+                    </a>
+                    <a href="javascript:history.back()" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-arrow-left"></i> Назад
+                    </a>
+                </div>
+            </div>
+            
+            <div class="mt-5">
+                <img src="https://media.giphy.com/media/TqiwHbFBaZ4ti/giphy.gif" 
+                     alt="500" 
+                     class="img-fluid rounded shadow"
+                     style="max-width: 400px;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .error-template {
+        padding: 40px 15px;
+    }
+    .display-1 {
+        font-size: 8rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}

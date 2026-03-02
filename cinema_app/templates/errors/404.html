@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container text-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="error-template">
+                <h1 class="display-1 text-danger">404</h1>
+                <h2 class="mb-4">Сторінку не знайдено</h2>
+                <p class="lead text-muted mb-5">
+                    На жаль, сторінка, яку ви шукаєте, не існує або була переміщена.
+                </p>
+                <div class="error-actions">
+                    <a href="{{ url_for('main.index') }}" class="btn btn-primary btn-lg me-3">
+                        <i class="bi bi-house-door"></i> На головну
+                    </a>
+                    <a href="{{ url_for('main.films') }}" class="btn btn-outline-secondary btn-lg">
+                        <i class="bi bi-film"></i> До афіші
+                    </a>
+                </div>
+            </div>
+            
+            <div class="mt-5">
+                <img src="https://media.giphy.com/media/14uQ3cOFteDaU/giphy.gif" 
+                     alt="404" 
+                     class="img-fluid rounded shadow"
+                     style="max-width: 400px;">
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .error-template {
+        padding: 40px 15px;
+    }
+    .display-1 {
+        font-size: 8rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
