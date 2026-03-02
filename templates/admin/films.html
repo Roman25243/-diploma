@@ -8,32 +8,113 @@
         <h3>{% if edit_mode %}Редагувати фільм{% else %}Додати новий фільм{% endif %}</h3>
     </div>
     <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
+        <form method="POST" enctype="multipart/form-data" novalidate>
+            {{ form.hidden_tag() }}
             <input type="hidden" name="film_id" id="edit-film-id" value="">
 
             <div class="row">
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label class="form-label">Назва фільму</label>
-                        <input type="text" name="title" id="edit-title" class="form-control" required>
+                        {{ form.title.label(class="form-label") }}
+                        {{ form.title(class="form-control" + (" is-invalid" if form.title.errors else ""), id="edit-title") }}
+                        {% if form.title.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.title.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Опис</label>
-                        <textarea name="description" id="edit-description" class="form-control" rows="5" required></textarea>
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control" + (" is-invalid" if form.description.errors else ""), rows="5", id="edit-description") }}
+                        {% if form.description.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.description.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.genre.label(class="form-label") }}
+                        {{ form.genre(class="form-control" + (" is-invalid" if form.genre.errors else ""), placeholder="наприклад: Бойовик, Комедія", id="edit-genre") }}
+                        {% if form.genre.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.genre.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.director.label(class="form-label") }}
+                        {{ form.director(class="form-control" + (" is-invalid" if form.director.errors else ""), placeholder="наприклад: Крістофер Нолан", id="edit-director") }}
+                        {% if form.director.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.director.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.actors.label(class="form-label") }}
+                        {{ form.actors(class="form-control" + (" is-invalid" if form.actors.errors else ""), rows="3", placeholder="наприклад: Леонардо Ді Капріо, Том Гарді", id="edit-actors") }}
+                        {% if form.actors.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.actors.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
 
                 <div class="col-md-6">
                     <div class="mb-3">
-                        <label class="form-label">Постер (зображення)</label>
-                        <input type="file" name="image" class="form-control" accept="image/*">
+                        {{ form.duration.label(class="form-label") }}
+                        {{ form.duration(class="form-control" + (" is-invalid" if form.duration.errors else ""), placeholder="120", id="edit-duration") }}
+                        {% if form.duration.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.duration.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.age_rating.label(class="form-label") }}
+                        {{ form.age_rating(class="form-select" + (" is-invalid" if form.age_rating.errors else ""), id="edit-age-rating") }}
+                        {% if form.age_rating.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.age_rating.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.release_year.label(class="form-label") }}
+                        {{ form.release_year(class="form-control" + (" is-invalid" if form.release_year.errors else ""), placeholder="2024", id="edit-release-year") }}
+                        {% if form.release_year.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.release_year.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        {{ form.image.label(class="form-label") }}
+                        {{ form.image(class="form-control" + (" is-invalid" if form.image.errors else "")) }}
+                        {% if form.image.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.image.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
                         <small class="text-muted">Залиште порожнім, якщо не хочете змінювати</small>
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label">Трейлер (YouTube посилання)</label>
-                        <input type="url" name="trailer" id="edit-trailer" class="form-control" placeholder="https://www.youtube.com/watch?v=...">
+                        {{ form.trailer.label(class="form-label") }}
+                        {{ form.trailer(class="form-control" + (" is-invalid" if form.trailer.errors else ""), placeholder="https://www.youtube.com/watch?v=...", id="edit-trailer") }}
+                        {% if form.trailer.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.trailer.errors %}{{ error }}{% endfor %}
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -60,9 +141,16 @@
             {% endif %}
             <div class="card-body d-flex flex-column">
                 <h5 class="card-title">{{ film.title }}</h5>
-                <p class="card-text flex-grow-1">{{ film.description[:150] }}...</p>
+                <p class="card-text flex-grow-1">{{ film.description[:100] }}...</p>
+                {% if film.genre or film.release_year %}
+                <p class="text-muted small mb-2">
+                    {% if film.genre %}<span class="badge bg-primary">{{ film.genre }}</span>{% endif %}
+                    {% if film.release_year %}<span class="badge bg-secondary">{{ film.release_year }}</span>{% endif %}
+                    {% if film.duration %}<span class="badge bg-info">{{ film.duration }} хв</span>{% endif %}
+                </p>
+                {% endif %}
                 <div class="mt-auto">
-                    <button onclick="editFilm({{ film.id }}, '{{ film.title|e }}', '{{ film.description|e }}', '{{ film.trailer or '' }}')"
+                    <button onclick="editFilm({{ film.id }}, '{{ film.title|e }}', '{{ film.description|e }}', '{{ film.trailer or '' }}', '{{ film.genre or '' }}', '{{ film.director or '' }}', '{{ film.actors or '' }}', {{ film.duration or 'null' }}, '{{ film.age_rating or '' }}', {{ film.release_year or 'null' }})"
                             class="btn btn-warning btn-sm w-100 mb-2">
                         Редагувати
                     </button>
@@ -81,11 +169,17 @@
 {% endif %}
 
 <script>
-function editFilm(id, title, description, trailer) {
+function editFilm(id, title, description, trailer, genre, director, actors, duration, age_rating, release_year) {
     document.getElementById('edit-film-id').value = id;
     document.getElementById('edit-title').value = title;
     document.getElementById('edit-description').value = description;
     document.getElementById('edit-trailer').value = trailer;
+    document.getElementById('edit-genre').value = genre || '';
+    document.getElementById('edit-director').value = director || '';
+    document.getElementById('edit-actors').value = actors || '';
+    document.getElementById('edit-duration').value = duration || '';
+    document.getElementById('edit-age-rating').value = age_rating || '';
+    document.getElementById('edit-release-year').value = release_year || '';
     window.scrollTo(0, 0);  // Прокрутка до форми
 }
 
@@ -94,6 +188,12 @@ function clearForm() {
     document.getElementById('edit-title').value = '';
     document.getElementById('edit-description').value = '';
     document.getElementById('edit-trailer').value = '';
+    document.getElementById('edit-genre').value = '';
+    document.getElementById('edit-director').value = '';
+    document.getElementById('edit-actors').value = '';
+    document.getElementById('edit-duration').value = '';
+    document.getElementById('edit-age-rating').value = '';
+    document.getElementById('edit-release-year').value = '';
 }
 </script>
 

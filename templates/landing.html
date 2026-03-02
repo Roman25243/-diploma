@@ -5,13 +5,14 @@
     <div class="container text-center py-5">
         <h1 class="display-4 fw-bold">Ласкаво просимо до нашого кінотеатру</h1>
         <p class="lead mb-4">Бронюйте квитки онлайн з комфортом</p>
-        <a href="{{ url_for('films') }}" class="btn btn-danger btn-lg">Переглянути афішу</a>
+        <a href="{{ url_for('main.films') }}" class="btn btn-danger btn-lg">Переглянути афішу</a>
     </div>
 </div>
 
 <!-- Популярні фільми -->
 <div class="container mb-5">
     <h2 class="text-center mb-4">Популярні фільми зараз</h2>
+    {% if popular_films %}
     <div class="row">
         {% for film in popular_films %}
         <div class="col-md-3 mb-4">
@@ -19,12 +20,41 @@
                 <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}" style="height: 350px; object-fit: cover;">
                 <div class="card-body text-center">
                     <h5 class="card-title">{{ film.title }}</h5>
-                    <a href="{{ url_for('film_detail', film_id=film.id) }}" class="btn btn-primary">Детальніше</a>
+                    
+                    <!-- Додаткова інформація -->
+                    <div class="mb-2">
+                        {% if film.genre %}
+                        <span class="badge bg-primary">{{ film.genre }}</span>
+                        {% endif %}
+                        {% if film.release_year %}
+                        <span class="badge bg-secondary">{{ film.release_year }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Рейтинг -->
+                    <div class="mb-2">
+                        {% if film.review_count() > 0 %}
+                            <span class="text-warning">
+                                {% for i in range(film.average_rating()|int) %}⭐{% endfor %}
+                            </span>
+                            <br>
+                            <small class="text-muted">{{ film.average_rating() }}/5</small>
+                        {% else %}
+                            <small class="text-muted">Немає відгуків</small>
+                        {% endif %}
+                    </div>
+                    
+                    <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-primary">Детальніше</a>
                 </div>
             </div>
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <div class="alert alert-info text-center">
+        <p>Фільмів поки немає. Адміністратор скоро додасть нові фільми!</p>
+    </div>
+    {% endif %}
 </div>
 
 <!-- Переваги -->
