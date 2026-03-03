@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+        }
+        .content {
+            background: #f9f9f9;
+            padding: 30px;
+            border-radius: 0 0 10px 10px;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+        }
+        .session-details {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .detail-row {
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        .detail-label {
+            font-weight: bold;
+            color: #667eea;
+            display: inline-block;
+            width: 140px;
+        }
+        .button {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 14px;
+        }
+        .emoji {
+            font-size: 48px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="emoji">🚫</div>
+        <h1>Скасування сеансу</h1>
+    </div>
+    
+    <div class="content">
+        <p>Привіт, <strong>{{ user_name }}</strong>!</p>
+        
+        <div class="warning-box">
+            <strong>⚠️ Важливе повідомлення!</strong><br>
+            На жаль, адміністрація кінотеатру змушена скасувати сеанс, на який ви мали бронювання.
+        </div>
+        
+        <div class="session-details">
+            <h3 style="margin-top: 0; color: #667eea;">Деталі скасованого сеансу:</h3>
+            
+            <div class="detail-row">
+                <span class="detail-label">🎬 Фільм:</span>
+                <span>{{ film_title }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">📅 Дата і час:</span>
+                <span>{{ session_time }}</span>
+            </div>
+            
+            <div class="detail-row">
+                <span class="detail-label">📋 Статус:</span>
+                <span style="color: #dc3545; font-weight: bold;">СКАСОВАНО</span>
+            </div>
+        </div>
+        
+        <p>
+            <strong>Що далі?</strong><br>
+            • Ваше бронювання автоматично скасовано<br>
+            • Місце звільнено в системі<br>
+            • Ви можете забронювати інший сеанс
+        </p>
+        
+        <p>Перепрошуємо за незручності! Сподіваємось на ваше розуміння.</p>
+        
+        <p style="text-align: center; margin-top: 30px;">
+            <a href="{{ films_url }}" class="button">
+                Переглянути інші сеанси
+            </a>
+        </p>
+    </div>
+    
+    <div class="footer">
+        <p>З повагою,<br>Команда кінотеатру Online</p>
+        <p style="font-size: 12px; color: #999;">
+            Це автоматичне повідомлення. Будь ласка, не відповідайте на цей email.
+        </p>
+    </div>
+</body>
+</html>

@@ -135,9 +135,11 @@
     <div class="col-md-4 mb-4">
         <div class="card h-100 shadow-sm">
             {% if film.image %}
-            <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}" style="height: 400px; object-fit: cover;">
+            <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}">
             {% else %}
-            <img src="{{ url_for('static', filename='placeholder.jpg') }}" class="card-img-top" alt="Нет изображения" style="height: 400px; object-fit: cover; background-color: #f8f9fa;">
+            <div class="card-img-top placeholder-img">
+                <span class="text-muted">Немає зображення</span>
+            </div>
             {% endif %}
             <div class="card-body d-flex flex-column">
                 <h5 class="card-title">{{ film.title }}</h5>
@@ -150,8 +152,17 @@
                 </p>
                 {% endif %}
                 <div class="mt-auto">
-                    <button onclick="editFilm({{ film.id }}, '{{ film.title|e }}', '{{ film.description|e }}', '{{ film.trailer or '' }}', '{{ film.genre or '' }}', '{{ film.director or '' }}', '{{ film.actors or '' }}', {{ film.duration or 'null' }}, '{{ film.age_rating or '' }}', {{ film.release_year or 'null' }})"
-                            class="btn btn-warning btn-sm w-100 mb-2">
+                    <button class="btn btn-warning btn-sm w-100 mb-2 edit-film-btn"
+                            data-id="{{ film.id }}"
+                            data-title="{{ film.title }}"
+                            data-description="{{ film.description }}"
+                            data-trailer="{{ film.trailer or '' }}"
+                            data-genre="{{ film.genre or '' }}"
+                            data-director="{{ film.director or '' }}"
+                            data-actors="{{ film.actors or '' }}"
+                            data-duration="{{ film.duration or '' }}"
+                            data-age-rating="{{ film.age_rating or '' }}"
+                            data-release-year="{{ film.release_year or '' }}">
                         Редагувати
                     </button>
                     <form method="POST" style="display:inline;" onsubmit="return confirm('Видалити фільм «{{ film.title }}»?')">
@@ -169,18 +180,49 @@
 {% endif %}
 
 <script>
-function editFilm(id, title, description, trailer, genre, director, actors, duration, age_rating, release_year) {
-    document.getElementById('edit-film-id').value = id;
-    document.getElementById('edit-title').value = title;
-    document.getElementById('edit-description').value = description;
-    document.getElementById('edit-trailer').value = trailer;
-    document.getElementById('edit-genre').value = genre || '';
-    document.getElementById('edit-director').value = director || '';
-    document.getElementById('edit-actors').value = actors || '';
-    document.getElementById('edit-duration').value = duration || '';
-    document.getElementById('edit-age-rating').value = age_rating || '';
-    document.getElementById('edit-release-year').value = release_year || '';
-    window.scrollTo(0, 0);  // Прокрутка до форми
+// Обробка кнопок редагування
+document.addEventListener('DOMContentLoaded', function() {
+    const editButtons = document.querySelectorAll('.edit-film-btn');
+    
+    editButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const filmData = {
+                id: this.dataset.id,
+                title: this.dataset.title,
+                description: this.dataset.description,
+                trailer: this.dataset.trailer,
+                genre: this.dataset.genre,
+                director: this.dataset.director,
+                actors: this.dataset.actors,
+                duration: this.dataset.duration,
+                ageRating: this.dataset.ageRating,
+                releaseYear: this.dataset.releaseYear
+            };
+            
+            editFilm(filmData);
+        });
+    });
+});
+
+function editFilm(data) {
+    document.getElementById('edit-film-id').value = data.id;
+    document.getElementById('edit-title').value = data.title;
+    document.getElementById('edit-description').value = data.description;
+    document.getElementById('edit-trailer').value = data.trailer;
+    document.getElementById('edit-genre').value = data.genre;
+    document.getElementById('edit-director').value = data.director;
+    document.getElementById('edit-actors').value = data.actors;
+    document.getElementById('edit-duration').value = data.duration;
+    document.getElementById('edit-age-rating').value = data.ageRating;
+    document.getElementById('edit-release-year').value = data.releaseYear;
+    
+    // Прокрутка до форми
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Підсвічуємо форму
+    const formCard = document.querySelector('.card');
+    formCard.classList.add('border-warning');
+    setTimeout(() => formCard.classList.remove('border-warning'), 2000);
 }
 
 function clearForm() {

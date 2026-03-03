@@ -17,7 +17,7 @@
         {% for film in popular_films %}
         <div class="col-md-3 mb-4">
             <div class="card h-100 shadow-sm border-0">
-                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}" style="height: 350px; object-fit: cover;">
+                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-small" alt="{{ film.title }}">
                 <div class="card-body text-center">
                     <h5 class="card-title">{{ film.title }}</h5>
                     
@@ -44,7 +44,21 @@
                         {% endif %}
                     </div>
                     
-                    <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-primary">Детальніше</a>
+                    <!-- Кнопки -->
+                    <div class="d-flex gap-2 justify-content-center">
+                        {% if current_user.is_authenticated %}
+                        <form method="POST" action="{{ url_for('user.toggle_favorite', film_id=film.id) }}">
+                            <button type="submit" class="btn btn-sm {{ 'btn-danger' if film.is_favorited_by(current_user) else 'btn-outline-danger' }}">
+                                {% if film.is_favorited_by(current_user) %}
+                                    ❤️
+                                {% else %}
+                                    🤍
+                                {% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                        <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-primary">Детальніше</a>
+                    </div>
                 </div>
             </div>
         </div>

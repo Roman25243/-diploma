@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from extensions import db
-from models import Booking, Seat, Session
+from models import Booking, Seat, Session, Film, Favorite
 from utils import send_booking_confirmation_email, send_booking_cancellation_email
 
 user_bp = Blueprint('user', __name__)
@@ -36,6 +36,12 @@ def profile():
 def seats(session_id):
     """Вибір та бронювання місць на сеанс"""
     session = Session.query.get_or_404(session_id)
+    
+    # Перевірка чи сеанс не скасовано
+    if session.status == 'cancelled':
+        flash('Цей сеанс скасовано. Будь ласка, оберіть інший.', 'danger')
+        return redirect(url_for('main.film_detail', film_id=session.film_id))
+    
     seats = Seat.query.filter_by(session_id=session_id).order_by(Seat.row, Seat.number).all()
 
     if request.method == 'POST':
@@ -105,3 +111,58 @@ def cancel_booking(booking_id):
 
     flash('Бронювання успішно скасовано', 'success')
     return redirect(url_for('user.profile'))
+
+
+@user_bp.route('/favorites')
+@login_required
+def favorites():
+    """Список обраних фільмів"""
+    favorites = Favorite.query.filter_by(user_id=current_user.id)\
+        .order_by(Favorite.added_at.desc()).all()
+    
+    films = [fav.film for fav in favorites]
+    
+    return render_template('favorites.html', films=films, favorites=favorites)
+
+
+@user_bp.route('/favorite/toggle/<int:film_id>', methods=['POST'])
+@login_required
+def toggle_favorite(film_id):
+    """Перемкнути стан (додати/видалити)"""
+    film = Film.query.get_or_404(film_id)
+    
+    favorite = Favorite.query.filter_by(
+        user_id=current_user.id, 
+        film_id=film_id
+    ).first()
+    
+    if favorite:
+        # Видалити з обраних
+        db.session.delete(favorite)
+        db.session.commit()
+        flash(f'"{film.title}" видалено з обраних', 'success')
+    else:
+        # Додати до обраних
+        favorite = Favorite(user_id=current_user.id, film_id=film_id)
+        db.session.add(favorite)
+        db.session.commit()
+        flash(f'"{film.title}" додано до обраних!', 'success')
+    
+    return redirect(request.referrer or url_for('main.films'))
+
+
+@user_bp.route('/favorite/remove/<int:film_id>', methods=['POST'])
+@login_required
+def remove_from_favorites(film_id):
+    """Видалити з обраних"""
+    favorite = Favorite.query.filter_by(
+        user_id=current_user.id, 
+        film_id=film_id
+    ).first_or_404()
+    
+    film_title = favorite.film.title
+    db.session.delete(favorite)
+    db.session.commit()
+    flash(f'"{film_title}" видалено з обраних', 'success')
+    
+    return redirect(request.referrer or url_for('user.favorites'))

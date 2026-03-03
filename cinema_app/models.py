@@ -13,6 +13,7 @@ class User(UserMixin, db.Model):
     is_admin = db.Column(db.Boolean, default=False)
     bookings = db.relationship('Booking', backref='user', lazy=True)
     reviews = db.relationship('Review', backref='user', lazy=True)
+    favorites = db.relationship('Favorite', backref='user', lazy=True, cascade='all, delete-orphan')
 
 
 class Film(db.Model):
@@ -33,6 +34,7 @@ class Film(db.Model):
     
     sessions = db.relationship('Session', backref='film', lazy=True)
     reviews = db.relationship('Review', backref='film', lazy=True)
+    favorited_by = db.relationship('Favorite', backref='film', lazy=True, cascade='all, delete-orphan')
     
     def average_rating(self):
         """Підрахунок середнього рейтингу фільму"""
@@ -43,6 +45,16 @@ class Film(db.Model):
     def review_count(self):
         """Кількість відгуків"""
         return len(self.reviews)
+    
+    def is_favorited_by(self, user):
+        """Перевірка чи фільм в обраних у користувача"""
+        if not user or not user.is_authenticated:
+            return False
+        return Favorite.query.filter_by(user_id=user.id, film_id=self.id).first() is not None
+    
+    def favorites_count(self):
+        """Скільки користувачів додали фільм в обрані"""
+        return len(self.favorited_by)
     
     def get_similar_films(self, limit=4):
         """Знайти схожі фільми на основі жанру та режисера"""
@@ -97,7 +109,20 @@ class Session(db.Model):
     film_id = db.Column(db.Integer, db.ForeignKey('film.id'))
     start_time = db.Column(db.String(50))
     price = db.Column(db.Float)
+    status = db.Column(db.String(20), default='active')  # active, cancelled
     seats = db.relationship('Seat', backref='session', lazy=True)
+    
+    def is_cancelled(self):
+        """Перевірка чи сеанс скасовано"""
+        return self.status == 'cancelled'
+    
+    def booked_seats_count(self):
+        """Кількість заброньованих місць"""
+        return sum(1 for seat in self.seats if seat.status == 'booked')
+    
+    def available_seats_count(self):
+        """Кількість доступних місць"""
+        return sum(1 for seat in self.seats if seat.status == 'free')
 
 
 class Seat(db.Model):
@@ -128,3 +153,19 @@ class Review(db.Model):
     
     def __repr__(self):
         return f'<Review {self.user.name} - {self.film.title}: {self.rating}/5>'
+
+
+class Favorite(db.Model):
+    """Обрані фільми користувача"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    film_id = db.Column(db.Integer, db.ForeignKey('film.id'), nullable=False)
+    added_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Унікальність: один користувач не може додати той самий фільм двічі
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'film_id', name='unique_user_film'),
+    )
+    
+    def __repr__(self):
+        return f'<Favorite User:{self.user_id} Film:{self.film_id}>'

@@ -32,23 +32,34 @@
 <div class="row">
     {% for booking in bookings %}
     <div class="col-md-6 mb-4">
-        <div class="card h-100 shadow-sm">
+        <div class="card h-100 shadow-sm{% if booking.seat.session.status == 'cancelled' %} border-danger{% endif %}">
 
             {% if booking.seat.session.film.image %}
             <img src="{{ url_for('static', filename='uploads/' ~ booking.seat.session.film.image) }}"
-                 class="card-img-top"
-                 style="height: 250px; object-fit: cover;">
+                 class="card-img-small">
             {% endif %}
 
             <div class="card-body">
-                <h5 class="card-title">{{ booking.seat.session.film.title }}</h5>
+                <h5 class="card-title">
+                    {{ booking.seat.session.film.title }}
+                    {% if booking.seat.session.status == 'cancelled' %}
+                    <span class="badge bg-danger ms-2">Скасовано</span>
+                    {% endif %}
+                </h5>
                 <p><strong>Сеанс:</strong> {{ booking.seat.session.start_time }}</p>
                 <p><strong>Місце:</strong> ряд {{ booking.seat.row }},
                     номер {{ booking.seat.number }}</p>
                 <p><strong>Ціна:</strong>
-                    <span class="text-success">{{ booking.seat.session.price }} грн</span>
+                    <span class="{% if booking.seat.session.status == 'cancelled' %}text-muted text-decoration-line-through{% else %}text-success{% endif %}">
+                        {{ booking.seat.session.price }} грн
+                    </span>
                 </p>
 
+                {% if booking.seat.session.status == 'cancelled' %}
+                <div class="alert alert-danger py-2 mb-3">
+                    <small>⚠️ Цей сеанс скасовано адміністрацією</small>
+                </div>
+                {% else %}
                 <form method="POST"
                       action="{{ url_for('user.cancel_booking', booking_id=booking.id) }}">
                     <button type="submit"
@@ -57,6 +68,7 @@
                         Скасувати бронювання
                     </button>
                 </form>
+                {% endif %}
             </div>
         </div>
     </div>

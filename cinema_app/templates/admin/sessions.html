@@ -63,16 +63,57 @@
     </div>
     <div class="card-body">
         {% if sessions %}
-        <ul class="list-group">
-            {% for session in sessions %}
-            <li class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>{{ session.film.title }}</strong> — {{ session.start_time }}
-                </div>
-                <span class="badge bg-success rounded-pill">{{ session.price }} грн</span>
-            </li>
-            {% endfor %}
-        </ul>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Фільм</th>
+                        <th>Дата і час</th>
+                        <th>Ціна</th>
+                        <th>Заброньовано</th>
+                        <th>Статус</th>
+                        <th>Дії</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for session in sessions %}
+                    <tr class="{% if session.status == 'cancelled' %}table-secondary{% endif %}">
+                        <td><strong>{{ session.film.title }}</strong></td>
+                        <td>{{ session.start_time }}</td>
+                        <td>{{ session.price }} грн</td>
+                        <td>
+                            {% if session.status == 'active' %}
+                                {{ session.booked_seats_count() }} / {{ session.seats|length }}
+                                <small class="text-muted">({{ session.available_seats_count() }} вільних)</small>
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if session.status == 'cancelled' %}
+                                <span class="badge bg-danger">Скасовано</span>
+                            {% else %}
+                                <span class="badge bg-success">Активний</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if session.status == 'active' %}
+                                <form method="POST" style="display:inline;" 
+                                      onsubmit="return confirm('Ви впевнені, що хочете скасувати сеанс?\n\nФільм: {{ session.film.title }}\nЧас: {{ session.start_time }}\nЗаброньовано місць: {{ session.booked_seats_count() }}\n\nУсі користувачі з бронюваннями отримають повідомлення про скасування.')">
+                                    <input type="hidden" name="cancel_session" value="{{ session.id }}">
+                                    <button type="submit" class="btn btn-danger btn-sm">
+                                        🚫 Скасувати сеанс
+                                    </button>
+                                </form>
+                            {% else %}
+                                <button class="btn btn-secondary btn-sm" disabled>Вже скасовано</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
         {% else %}
         <div class="alert alert-info">Сеансів ще немає. Додайте перший!</div>
         {% endif %}
