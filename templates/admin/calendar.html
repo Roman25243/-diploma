@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+
+{% block title %}Календар сеансів - CinemaBook{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .page-header {
+        text-align: center;
+        padding: 2rem 0;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .calendar-grid {
+        font-size: 0.9rem;
+        border-collapse: separate;
+        border-spacing: 0;
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+        background: rgba(10, 14, 39, 0.6);
+    }
+
+    .calendar-grid th,
+    .calendar-grid td {
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        padding: 0.5rem;
+    }
+
+    .calendar-cell {
+        min-height: 90px;
+        position: relative;
+        background-color: rgba(26, 31, 58, 0.4);
+        transition: background-color 0.2s ease;
+    }
+
+    .calendar-cell:hover {
+        background-color: rgba(139, 92, 246, 0.1);
+    }
+
+    .session-card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        backdrop-filter: blur(10px);
+        cursor: pointer;
+    }
+
+    .session-card.bg-success {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+    }
+
+    .session-card.bg-secondary {
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
+        opacity: 0.7;
+    }
+
+    .session-card:hover {
+        transform: translateY(-4px) scale(1.03);
+        box-shadow: 0 8px 16px rgba(139, 92, 246, 0.4);
+        z-index: 10;
+    }
+
+    .session-card .progress {
+        background-color: rgba(255,255,255,0.2);
+        height: 4px;
+    }
+
+    .session-card .progress-bar {
+        transition: width 0.6s ease;
+        background-color: #fbbf24;
+    }
+
+    .empty-slot {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%) !important;
+        border: 2px dashed rgba(139, 92, 246, 0.4) !important;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 8px !important;
+        cursor: pointer;
+        height: 90px;
+    }
+
+    .empty-slot:hover {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%) !important;
+        border-color: #8b5cf6 !important;
+        border-style: solid !important;
+        transform: scale(1.05);
+    }
+
+    .empty-slot .text-muted {
+        transition: all 0.3s ease;
+        color: #94a3b8;
+    }
+
+    .empty-slot:hover .text-muted {
+        color: #a78bfa !important;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        background: linear-gradient(to bottom, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%);
+        z-index: 100;
+        font-weight: 600;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        border-bottom: 2px solid rgba(139, 92, 246, 0.4);
+        color: #a78bfa;
+    }
+
+    .calendar-grid td:first-child {
+        position: sticky;
+        left: 0;
+        background: linear-gradient(to right, rgba(139, 92, 246, 0.2) 0%, rgba(26, 31, 58, 0.8) 100%);
+        z-index: 9;
+        font-weight: 600;
+        border-right: 2px solid rgba(139, 92, 246, 0.4);
+    }
+
+    .legend-card {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 15px;
+        padding: 1rem;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .session-card,
+    .empty-slot {
+        animation: fadeInUp 0.3s ease-out;
+    }
+
+    /* Стилі для модального вікна */
+    .modal-backdrop {
+        z-index: 1040 !important;
+    }
+
+    .modal {
+        z-index: 1050 !important;
+    }
+
+    .modal-dialog {
+        z-index: 1055 !important;
+    }
+
+    .modal-content {
+        position: relative;
+        pointer-events: auto;
+    }
+
+    /* Кнопка закриття модального вікна */
+    .btn-close-white {
+        filter: brightness(0) invert(1);
+        opacity: 0.8;
+    }
+
+    .btn-close-white:hover {
+        opacity: 1;
+    }
+
+    /* Стилі для форм всередині модального вікна */
+    .modal .form-control,
+    .modal .form-select {
+        background-color: rgba(26, 31, 58, 0.6);
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        color: #e0e0e0;
+        pointer-events: auto;
+    }
+
+    .modal .form-control:focus,
+    .modal .form-select:focus {
+        background-color: rgba(26, 31, 58, 0.8);
+        border-color: #8b5cf6;
+        box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25);
+        color: #fff;
+    }
+
+    .modal .input-group-text {
+        background-color: rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        color: #a78bfa;
+        pointer-events: auto;
+    }
+
+    .modal .form-label {
+        color: #a78bfa;
+        font-weight: 500;
+    }
+
+    .modal .btn {
+        pointer-events: auto;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
+    
+{% block content %}
+<div class="container-fluid">
+    <div class="page-header">
+        <h1><i class="fas fa-calendar-alt"></i> Календар сеансів</h1>
+    </div>
+    
+    <!-- Навігація по тижнях -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                <div>
+                    <a href="{{ url_for('admin.calendar', week=week_offset-1) }}" class="btn btn-primary">
+                        <i class="fas fa-chevron-left"></i> Попередній
+                    </a>
+                </div>
+                <div class="text-center">
+                    <h4 class="mb-2" style="color: #a78bfa;">
+                        {% if week_offset == 0 %}
+                            <i class="fas fa-calendar-check"></i> Поточний тиждень
+                        {% elif week_offset == 1 %}
+                            <i class="fas fa-calendar-plus"></i> Наступний тиждень
+                        {% elif week_offset > 1 %}
+                            <i class="fas fa-calendar"></i> +{{ week_offset }} тижнів
+                        {% else %}
+                            <i class="fas fa-calendar"></i> {{ week_offset }} тижнів назад
+                        {% endif %}
+                    </h4>
+                    <p class="text-muted mb-0">{{ start_of_week.strftime('%d.%m.%Y') }} - {{ (start_of_week + timedelta(days=6)).strftime('%d.%m.%Y') }}</p>
+                    {% if week_offset != 0 %}
+                    <a href="{{ url_for('admin.calendar') }}" class="btn btn-sm btn-outline-light mt-2">
+                        <i class="fas fa-home"></i> Повернутись до поточного
+                    </a>
+                    {% endif %}
+                </div>
+                <div>
+                    <a href="{{ url_for('admin.calendar', week=week_offset+1) }}" class="btn btn-primary">
+                        Наступний <i class="fas fa-chevron-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Легенда -->
+    <div class="row mb-3">
+        <div class="col-12">
+            <div class="legend-card d-flex align-items-center gap-3 flex-wrap">
+                <strong style="color: #a78bfa;">Легенда:</strong>
+                <span class="badge bg-success ms-2 px-3 py-2">
+                    <i class="fas fa-check-circle"></i> Активний сеанс
+                </span>
+                <span class="badge bg-secondary ms-2 px-3 py-2">
+                    <i class="fas fa-times-circle"></i> Скасований
+                </span>
+                <span class="badge bg-primary ms-2 px-3 py-2">
+                    <i class="fas fa-plus-circle"></i> Вільний слот
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Календарна сітка -->
+    <div class="table-responsive" style="overflow-x: auto;">
+        <table class="table calendar-grid" style="min-width: 1200px;">
+            <thead>
+                <tr>
+                    <th style="width: 80px; position: sticky; left: 0; z-index: 110;">Час</th>
+                    {% for day in week_days %}
+                    <th class="text-center" style="width: 14%;">
+                        <div><strong>{{ day.day_name }}</strong></div>
+                        <div class="text-muted small">{{ day.full_date }}</div>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for time_slot in time_slots %}
+                <tr>
+                    <td class="text-center align-middle fw-bold" style="position: sticky; left: 0; z-index: 9;">
+                        {{ time_slot }}
+                    </td>
+                    {% for day in week_days %}
+                    <td class="p-1 calendar-cell" style="vertical-align: top;">
+                        {% set key = (day.date.isoformat(), time_slot) %}
+                        {% if key in sessions_grid %}
+                            <!-- Існуючі сеанси -->
+                            {% for session in sessions_grid[key] %}
+                            <div class="session-card mb-1 p-2 rounded-3 {% if session.status == 'active' %}bg-success{% else %}bg-secondary{% endif %} text-white" 
+                                 style="font-size: 0.8rem; min-height: 85px;">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <div class="fw-bold text-truncate flex-grow-1" title="{{ session.film_title }}" style="font-size: 0.85rem;">
+                                        🎬 {{ session.film_title[:18] }}{% if session.film_title|length > 18 %}...{% endif %}
+                                    </div>
+                                </div>
+                                <div class="small opacity-90 mb-1">
+                                    <i class="fas fa-clock"></i> {{ session.exact_time }}
+                                </div>
+                                <div class="small opacity-90 mb-1">
+                                    <i class="fas fa-money-bill-wave"></i> {{ session.price }} грн
+                                </div>
+                                {% if session.status == 'active' %}
+                                    {% set total_seats = session.booked + session.available %}
+                                    {% set fill_percent = (session.booked / total_seats * 100)|int if total_seats > 0 else 0 %}
+                                    <div class="small opacity-90">
+                                        <i class="fas fa-users"></i> {{ session.booked }}/{{ total_seats }}
+                                    </div>
+                                    <div class="progress mt-1">
+                                        <div class="progress-bar session-progress" role="progressbar" 
+                                             data-width="{{ fill_percent }}"
+                                             aria-valuenow="{{ fill_percent }}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100"></div>
+                                    </div>
+                                {% else %}
+                                    <div class="small">
+                                        <i class="fas fa-times-circle"></i> Скасовано
+                                    </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <!-- Вільний слот -->
+                            <div class="empty-slot p-2 text-center d-flex flex-column justify-content-center align-items-center" 
+                                 data-date="{{ day.date }}" 
+                                 data-time="{{ time_slot }}">
+                                <div class="text-muted">
+                                    <i class="fas fa-plus-circle" style="font-size: 2rem;"></i>
+                                    <div class="mt-1 small fw-bold">Додати</div>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Модальне вікно для створення сеансу -->
+<div class="modal fade" id="createSessionModal" tabindex="-1" aria-labelledby="createSessionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background: linear-gradient(135deg, rgba(26, 31, 58, 0.98) 0%, rgba(45, 27, 78, 0.98) 100%); border: 1px solid rgba(139, 92, 246, 0.3); box-shadow: 0 20px 60px rgba(139, 92, 246, 0.4);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(139, 92, 246, 0.3);">
+                <h5 class="modal-title" id="createSessionModalLabel" style="color: #a78bfa;"><i class="fas fa-plus-circle"></i> Створити новий сеанс</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.create_session_from_calendar') }}">
+                <div class="modal-body">
+                    <input type="hidden" name="week_offset" value="{{ week_offset }}">
+                    <input type="hidden" name="date" id="modalDate">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Дата</label>
+                        <input type="text" class="form-control" id="modalDateDisplay" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Час початку</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-clock"></i></span>
+                            <input type="time" class="form-control" name="time" id="modalTime" required>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Фільм</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-film"></i></span>
+                            <select class="form-select" name="film_id" required>
+                                <option value="">Оберіть фільм...</option>
+                                {% for film in films %}
+                                <option value="{{ film.id }}">{{ film.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Ціна квитка</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-money-bill-wave"></i></span>
+                            <input type="number" class="form-control" name="price" step="0.01" min="0" value="150" required>
+                            <span class="input-group-text">грн</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid rgba(139, 92, 246, 0.3);">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Скасувати</button>
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-check"></i> Створити сеанс</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Відкриття модального вікна для створення сеансу
+function openCreateModal(date, time) {
+    document.getElementById('modalDate').value = date;
+    document.getElementById('modalDateDisplay').value = date;
+    document.getElementById('modalTime').value = time;
+    
+    var modal = new bootstrap.Modal(document.getElementById('createSessionModal'));
+    modal.show();
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Встановлення ширини прогрес-барів
+    document.querySelectorAll('.session-progress').forEach(function(bar) {
+        var width = bar.getAttribute('data-width');
+        bar.style.width = width + '%';
+    });
+    
+    // Клік на вільний слот
+    document.querySelectorAll('.empty-slot').forEach(function(slot) {
+        slot.addEventListener('click', function() {
+            var date = this.getAttribute('data-date');
+            var time = this.getAttribute('data-time');
+            openCreateModal(date, time);
+        });
+    });
+    
+    // Клік на існуючий сеанс
+    document.querySelectorAll('.session-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+            window.location.href = "{{ url_for('admin.sessions') }}";
+        });
+    });
+});
+</script>
+
+{% endblock %}

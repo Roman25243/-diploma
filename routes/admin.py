@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import func
 import os
+from datetime import datetime, timedelta
 from extensions import db
 from models import User, Film, Session, Seat, Booking
 from forms import FilmForm, SessionForm
@@ -199,3 +200,118 @@ def sessions():
     
     sessions = Session.query.order_by(Session.start_time.desc()).all()
     return render_template('admin/sessions.html', films=films, sessions=sessions, form=form)
+
+
+@admin_bp.route('/calendar')
+@admin_required
+def calendar():
+    """Календарний вигляд сеансів на тиждень"""
+    # Отримуємо параметр week_offset (0 = поточний тиждень, 1 = наступний тиждень)
+    week_offset = request.args.get('week', 0, type=int)
+    
+    # Визначаємо початок тижня (понеділок)
+    today = datetime.now().date()
+    days_since_monday = today.weekday()  # 0 = понеділок, 6 = неділя
+    start_of_week = today - timedelta(days=days_since_monday) + timedelta(weeks=week_offset)
+    
+    # Генеруємо 7 днів тижня
+    week_days = []
+    for i in range(7):
+        day = start_of_week + timedelta(days=i)
+        week_days.append({
+            'date': day,
+            'day_name': ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'][day.weekday()],
+            'full_date': day.strftime('%d.%m.%Y')
+        })
+    
+    # Часові слоти (з 9:00 до 23:00 з кроком 1 година)
+    time_slots = []
+    for hour in range(9, 24):
+        time_slots.append(f"{hour:02d}:00")
+    
+    # Отримуємо всі сеанси на цей тиждень
+    end_of_week = start_of_week + timedelta(days=7)
+    all_sessions = Session.query.join(Film).filter(
+        Session.start_time >= start_of_week.strftime('%Y-%m-%d'),
+        Session.start_time < end_of_week.strftime('%Y-%m-%d')
+    ).all()
+    
+    # Організовуємо сеанси по днях і часах
+    sessions_grid = {}
+    for session in all_sessions:
+        try:
+            # Парсимо час сеансу
+            session_datetime = datetime.strptime(session.start_time, '%Y-%m-%d %H:%M')
+            session_date = session_datetime.date()
+            session_time = session_datetime.strftime('%H:00')  # Округлюємо до години
+            
+            # Ключ: (дата, час)
+            key = (session_date.isoformat(), session_time)
+            
+            if key not in sessions_grid:
+                sessions_grid[key] = []
+            
+            sessions_grid[key].append({
+                'id': session.id,
+                'film_title': session.film.title,
+                'exact_time': session_datetime.strftime('%H:%M'),
+                'price': session.price,
+                'status': session.status,
+                'booked': session.booked_seats_count(),
+                'available': session.available_seats_count()
+            })
+        except:
+            continue
+    
+    # Отримуємо всі фільми для швидкого створення
+    films = Film.query.all()
+    
+    return render_template('admin/calendar.html', 
+                         week_days=week_days,
+                         time_slots=time_slots,
+                         sessions_grid=sessions_grid,
+                         films=films,
+                         week_offset=week_offset,
+                         start_of_week=start_of_week,
+                         timedelta=timedelta)
+
+
+@admin_bp.route('/calendar/create-session', methods=['POST'])
+@admin_required
+def create_session_from_calendar():
+    """Швидке створення сеансу з календаря"""
+    try:
+        film_id = request.form.get('film_id', type=int)
+        date = request.form.get('date')
+        time = request.form.get('time')
+        price = request.form.get('price', type=float)
+        
+        if not all([film_id, date, time, price]):
+            flash('Заповніть всі поля', 'danger')
+            return redirect(url_for('admin.calendar'))
+        
+        # Формуємо datetime
+        start_time = f"{date} {time}"
+        
+        # Створюємо сеанс
+        session = Session(
+            film_id=film_id,
+            start_time=start_time,
+            price=price,
+            status='active'
+        )
+        db.session.add(session)
+        db.session.commit()
+        
+        # Автоматичне створення місць: 10 рядів × 12 місць
+        for row in range(1, 11):
+            for num in range(1, 13):
+                seat = Seat(session_id=session.id, row=row, number=num, status='free')
+                db.session.add(seat)
+        db.session.commit()
+        
+        flash(f'Сеанс створено на {start_time}', 'success')
+    except Exception as e:
+        flash(f'Помилка: {str(e)}', 'danger')
+    
+    return redirect(url_for('admin.calendar') + f'?week={request.form.get("week_offset", 0)}')

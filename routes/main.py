@@ -26,6 +26,23 @@ def index():
     return render_template('landing.html', popular_films=popular_films)
 
 
+@main_bp.route('/cinemabook-test')
+def cinemabook_test():
+    """Тестова сторінка з новим дизайном CinemaBook"""
+    # Отримуємо популярні фільми
+    popular_films = db.session.query(Film)\
+        .outerjoin(Session).outerjoin(Seat).outerjoin(Booking)\
+        .group_by(Film.id)\
+        .order_by(func.count(Booking.id).desc())\
+        .limit(4).all()
+    
+    # Fallback: якщо немає фільмів або менше 4, показуємо найновіші
+    if len(popular_films) < 4:
+        popular_films = Film.query.order_by(Film.id.desc()).limit(4).all()
+    
+    return render_template('cinemabook_test.html', popular_films=popular_films)
+
+
 @main_bp.route('/films')
 def films():
     """Список всіх фільмів з пошуком"""

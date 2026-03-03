@@ -1,74 +1,194 @@
 {% extends "base.html" %}
+
+{% block title %}Адмін-панель - CinemaBook{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .page-header {
+        text-align: center;
+        padding: 2rem 0 3rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .stats-card {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 15px;
+        padding: 2rem;
+        text-align: center;
+        margin-bottom: 1.5rem;
+        transition: all 0.3s ease;
+    }
+
+    .stats-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
+    }
+
+    .stats-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+    }
+
+    .stats-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .stats-label {
+        color: #94a3b8;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        font-size: 0.9rem;
+    }
+
+    .chart-card {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 15px;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .chart-card-header {
+        font-size: 1.3rem;
+        font-weight: 700;
+        color: #a78bfa;
+        margin-bottom: 1.5rem;
+    }
+
+    .data-table {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        border-radius: 15px;
+        overflow: hidden;
+        margin-bottom: 2rem;
+    }
+
+    .data-table-header {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%);
+        padding: 1.5rem;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+    }
+
+    .data-table-header h5 {
+        margin: 0;
+        font-weight: 700;
+        color: #a78bfa;
+    }
+
+    .table {
+        margin-bottom: 0;
+        color: #e5e7eb;
+    }
+
+    .table thead th {
+        border-bottom: 2px solid rgba(139, 92, 246, 0.3);
+        color: #a78bfa;
+        font-weight: 600;
+        padding: 1rem;
+    }
+
+    .table tbody tr {
+        border-bottom: 1px solid rgba(139, 92, 246, 0.1);
+    }
+
+    .table tbody tr:hover {
+        background: rgba(139, 92, 246, 0.05);
+    }
+
+    .table tbody td {
+        padding: 1rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1 class="text-center mb-5">Адмін-панель — Аналітика та керування</h1>
+<div class="container">
+    <div class="page-header">
+        <h1><i class="fas fa-chart-line"></i> Адмін-панель — Аналітика</h1>
+    </div>
 
-<!-- Ключові метрики -->
-<div class="row text-center mb-5">
-    <div class="col-md-3">
-        <div class="card text-white bg-primary">
-            <div class="card-body">
-                <h5>Користувачі</h5>
-                <h2>{{ stats.total_users }}</h2>
+    <!-- Ключові метрики -->
+    <div class="row">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon" style="color: #8b5cf6;">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stats-label">Користувачі</div>
+                <div class="stats-value">{{ stats.total_users }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon" style="color: #10b981;">
+                    <i class="fas fa-ticket-alt"></i>
+                </div>
+                <div class="stats-label">Бронювання</div>
+                <div class="stats-value">{{ stats.total_bookings }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon" style="color: #ec4899;">
+                    <i class="fas fa-film"></i>
+                </div>
+                <div class="stats-label">Фільми</div>
+                <div class="stats-value">{{ stats.total_films }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-icon" style="color: #fbbf24;">
+                    <i class="fas fa-wallet"></i>
+                </div>
+                <div class="stats-label">Прибуток</div>
+                <div class="stats-value">{{ "%.0f"|format(stats.total_revenue) }}</div>
+                <small class="text-muted">грн</small>
             </div>
         </div>
     </div>
-    <div class="col-md-3">
-        <div class="card text-white bg-success">
-            <div class="card-body">
-                <h5>Бронювання</h5>
-                <h2>{{ stats.total_bookings }}</h2>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-white bg-info">
-            <div class="card-body">
-                <h5>Фільми</h5>
-                <h2>{{ stats.total_films }}</h2>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="card text-white bg-warning">
-            <div class="card-body">
-                <h5>Прибуток</h5>
-                <h2>{{ "%.2f"|format(stats.total_revenue) }} грн</h2>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Графіки -->
-<div class="row mb-5">
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Топ-5 популярних фільмів (за кількістю бронювань)</h5>
-            </div>
-            <div class="card-body">
+    <!-- Графіки -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <i class="fas fa-chart-bar"></i> Топ-5 популярних фільмів
+                </div>
                 <canvas id="popularFilmsChart"></canvas>
             </div>
         </div>
-    </div>
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5>Прибуток по фільмах (грн)</h5>
-            </div>
-            <div class="card-body">
+        <div class="col-md-6">
+            <div class="chart-card">
+                <div class="chart-card-header">
+                    <i class="fas fa-chart-pie"></i> Прибуток по фільмах
+                </div>
                 <canvas id="revenueChart"></canvas>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Топ активних користувачів -->
-<div class="card mb-5">
-    <div class="card-header">
-        <h5>Топ-10 активних користувачів</h5>
-    </div>
-    <div class="card-body">
-        <table class="table table-hover">
+    <!-- Топ активних користувачів -->
+    <div class="data-table">
+        <div class="data-table-header">
+            <h5><i class="fas fa-trophy"></i> Топ-10 активних користувачів</h5>
+        </div>
+        <table class="table">
             <thead>
                 <tr>
                     <th>#</th>
@@ -82,21 +202,25 @@
                 {% for user in stats.top_users %}
                 <tr>
                     <td>{{ loop.index }}</td>
-                    <td>{{ user.name }}</td>
+                    <td><i class="fas fa-user"></i> {{ user.name }}</td>
                     <td>{{ user.email }}</td>
-                    <td>{{ user.booking_count }}</td>
-                    <td>{{ "%.2f"|format(user.spent) }}</td>
+                    <td><span class="badge bg-primary">{{ user.booking_count }}</span></td>
+                    <td><strong>{{ "%.2f"|format(user.spent) }}</strong></td>
                 </tr>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-</div>
 
-<!-- Швидкий доступ -->
-<div class="text-center">
-    <a href="{{ url_for('admin.films') }}" class="btn btn-lg btn-primary me-3">Керування фільмами</a>
-    <a href="{{ url_for('admin.sessions') }}" class="btn btn-lg btn-warning me-3">Керування сеансами</a>
+    <!-- Швидкий доступ -->
+    <div class="text-center mb-5">
+        <a href="{{ url_for('admin.films') }}" class="btn btn-lg btn-primary me-3">
+            <i class="fas fa-film"></i> Керування фільмами
+        </a>
+        <a href="{{ url_for('admin.sessions') }}" class="btn btn-lg btn-primary me-3">
+            <i class="fas fa-calendar-alt"></i> Керування сеансами
+        </a>
+    </div>
 </div>
 
 <!-- Chart.js скрипти -->
@@ -110,10 +234,30 @@
             datasets: [{
                 label: 'Кількість бронювань',
                 data: {{ stats.popular_films.data|tojson }},
-                backgroundColor: 'rgba(54, 162, 235, 0.8)'
+                backgroundColor: 'rgba(139, 92, 246, 0.8)',
+                borderColor: 'rgba(139, 92, 246, 1)',
+                borderWidth: 2
             }]
         },
-        options: { scales: { y: { beginAtZero: true } } }
+        options: { 
+            responsive: true,
+            scales: { 
+                y: { 
+                    beginAtZero: true,
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(139, 92, 246, 0.1)' }
+                },
+                x: {
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(139, 92, 246, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: {
+                    labels: { color: '#94a3b8' }
+                }
+            }
+        }
     });
 
     // Прибуток по фільмах
@@ -124,9 +268,19 @@
             datasets: [{
                 data: {{ stats.revenue_films.data|tojson }},
                 backgroundColor: [
-                    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'
-                ]
+                    '#8b5cf6', '#ec4899', '#10b981', '#fbbf24', '#3b82f6'
+                ],
+                borderWidth: 2,
+                borderColor: '#0a0e27'
             }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    labels: { color: '#94a3b8' }
+                }
+            }
         }
     });
 </script>
