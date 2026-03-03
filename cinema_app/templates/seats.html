@@ -1,29 +1,157 @@
 {% extends "base.html" %}
+
+{% block title %}CinemaBook - Вибір місць{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .page-header {
+        text-align: center;
+        padding: 2rem 0 3rem;
+    }
+
+    .page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 0.5rem;
+    }
+
+    .session-info {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 3rem;
+        text-align: center;
+    }
+
+    .price-badge {
+        font-size: 1.5rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #28a745 0%, #20943a 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .screen {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(236, 72, 153, 0.3) 100%);
+        color: white;
+        text-align: center;
+        padding: 20px;
+        margin: 40px auto;
+        border-radius: 15px;
+        font-weight: bold;
+        font-size: 1.2rem;
+        max-width: 600px;
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4);
+        letter-spacing: 2px;
+    }
+
+    .seats-container {
+        max-width: 800px;
+        margin: 0 auto;
+    }
+
+    .legend {
+        display: flex;
+        gap: 2rem;
+        justify-content: center;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+    }
+
+    .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .legend-seat {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        display: inline-block;
+    }
+
+    .booking-summary {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        padding: 1.5rem;
+        border-radius: 15px;
+        text-align: center;
+        margin-top: 3rem;
+    }
+
+    .selected-count {
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<h1 class="text-center mb-4">{{ session.film.title }} — {{ session.start_time }}</h1>
-<h3 class="text-center text-muted mb-5">Ціна: {{ session.price }} грн</h3>
-
-<div class="screen mb-5">ЕКРАН</div>
-
-<form method="POST">
-    <div class="seats-grid">
-        {% for seat in seats %}
-        <button type="button" class="seat {{ 'booked' if seat.status == 'booked' else 'free' }}"
-                {% if seat.status =='booked' %}disabled{% endif %}
-                onclick="toggleSeat(this, {{ seat.id }})">
-            {{ seat.row }}-{{ seat.number }}
-        </button>
-        {% endfor %}
+<div class="container">
+    <div class="page-header">
+        <h1>{{ session.film.title }}</h1>
+        <p class="text-muted"><i class="fas fa-calendar-alt"></i> {{ session.start_time }}</p>
     </div>
 
-    <div class="text-center mt-5">
-        <p><strong>Вибрано місць:</strong> <span id="count">0</span></p>
-        <button type="submit" class="btn btn-success btn-lg" id="book-btn" disabled>Забронювати</button>
+    <div class="session-info">
+        <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+        <p class="mb-0">Ціна квитка: <span class="price-badge">{{ session.price }} грн</span></p>
     </div>
-</form>
+
+    <div class="screen">
+        <i class="fas fa-tv"></i> ЕКРАН
+    </div>
+
+    <!-- Легенда -->
+    <div class="legend">
+        <div class="legend-item">
+            <span class="legend-seat seat free"></span>
+            <span>Вільно</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-seat seat selected"></span>
+            <span>Вибрано</span>
+        </div>
+        <div class="legend-item">
+            <span class="legend-seat seat booked"></span>
+            <span>Зайнято</span>
+        </div>
+    </div>
+
+    <div class="seats-container">
+        <form method="POST">
+            <div class="seats-grid">
+                {% for seat in seats %}
+                <button type="button" class="seat {{ 'booked' if seat.status == 'booked' else 'free' }}"
+                        {% if seat.status =='booked' %}disabled{% endif %}
+                        onclick="toggleSeat(this, {{ seat.id }})">
+                    {{ seat.row }}-{{ seat.number }}
+                </button>
+                {% endfor %}
+            </div>
+
+            <div class="booking-summary">
+                <p class="mb-2"><i class="fas fa-couch"></i> Вибрано місць: <span class="selected-count" id="count">0</span></p>
+                <p class="mb-3 text-muted" id="total-price">Сума: 0 грн</p>
+                <button type="submit" class="btn btn-primary btn-lg" id="book-btn" disabled>
+                    <i class="fas fa-check-circle"></i> Забронювати
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <script>
 let selected = [];
+const seatPrice = {{ session.price }};
+
 function toggleSeat(btn, id) {
     if (btn.classList.contains('booked')) return;
     if (btn.classList.contains('selected')) {
@@ -33,12 +161,23 @@ function toggleSeat(btn, id) {
         btn.classList.add('selected');
         selected.push(id);
     }
-    document.getElementById('count').textContent = selected.length;
-    document.getElementById('book-btn').disabled = selected.length === 0;
+    updateBookingInfo();
+}
+
+function updateBookingInfo() {
+    const count = selected.length;
+    const total = count * seatPrice;
+    
+    document.getElementById('count').textContent = count;
+    document.getElementById('total-price').textContent = `Сума: ${total} грн`;
+    document.getElementById('book-btn').disabled = count === 0;
 
     // Додаємо приховані поля для відправки
-    let form = btn.closest('form');
-    form.innerHTML = form.innerHTML; // очищаємо старі
+    let form = document.querySelector('form');
+    // Видаляємо старі приховані поля
+    form.querySelectorAll('input[name="seat"]').forEach(input => input.remove());
+    
+    // Додаємо нові
     selected.forEach(s => {
         let input = document.createElement('input');
         input.type = 'hidden';
@@ -48,8 +187,4 @@ function toggleSeat(btn, id) {
     });
 }
 </script>
-
-<style>
-    .seat.selected { background-color: #0d6efd; }
-</style>
 {% endblock %}

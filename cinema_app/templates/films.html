@@ -1,86 +1,159 @@
 {% extends "base.html" %}
+
+{% block title %}CinemaBook - Афіша фільмів{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .page-header {
+        text-align: center;
+        padding: 2rem 0 3rem;
+    }
+
+    .page-header h1 {
+        font-size: 3rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .search-wrapper {
+        max-width: 600px;
+        margin: 0 auto 3rem;
+    }
+
+    .search-wrapper .input-group {
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.2);
+        border-radius: 15px;
+        overflow: hidden;
+    }
+
+    .search-wrapper input {
+        border: none;
+        padding: 1rem 1.5rem;
+        font-size: 1.1rem;
+    }
+
+    .search-wrapper button {
+        border: none;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        color: #fff;
+        padding: 0 2rem;
+        font-weight: 600;
+    }
+
+    .search-wrapper button:hover {
+        background: linear-gradient(135deg, #9d6eff 0%, #ff5bb0 100%);
+    }
+
+    .film-card-wrapper {
+        height: 100%;
+    }
+
+    .stars {
+        color: #ffd700;
+    }
+
+    .placeholder-img {
+        width: 100%;
+        height: 400px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(26, 31, 58, 0.8);
+        color: rgba(255, 255, 255, 0.5);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container">
-    <h1 class="text-center mb-4">Афіша фільмів</h1>
+    <div class="page-header">
+        <h1><i class="fas fa-film"></i> Афіша фільмів</h1>
+        <p class="text-muted">Оберіть фільм та забронюйте квитки</p>
+    </div>
 
     <!-- Пошук -->
-    <div class="row mb-4">
-        <div class="col-md-6 offset-md-3">
-            <form method="GET" action="{{ url_for('main.films') }}">
-                <div class="input-group">
-                    <input type="text" name="q" class="form-control" placeholder="Пошук за назвою або описом..." value="{{ search_query or '' }}">
-                    <button class="btn btn-outline-secondary" type="submit">Шукати</button>
-                </div>
-            </form>
-        </div>
+    <div class="search-wrapper">
+        <form method="GET" action="{{ url_for('main.films') }}">
+            <div class="input-group">
+                <input type="text" name="q" class="form-control" placeholder="🔍 Пошук за назвою або описом..." value="{{ search_query or '' }}">
+                <button class="btn" type="submit">Шукати</button>
+            </div>
+        </form>
     </div>
 
     {% if films %}
     <div class="row">
         {% for film in films %}
-        <div class="col-md-4 mb-4">
-            <div class="card h-100 shadow-sm">
-                {% if film.image %}
-                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}">
-                {% else %}
-                <div class="card-img-top placeholder-img">
-                    <span class="text-muted">Немає зображення</span>
-                </div>
-                {% endif %}
-                <div class="card-body d-flex flex-column">
-                    <h5 class="card-title">{{ film.title }}</h5>
-                    
-                    <!-- Додаткова інформація -->
-                    <div class="mb-2">
-                        {% if film.genre %}
-                        <span class="badge bg-primary">{{ film.genre }}</span>
-                        {% endif %}
-                        {% if film.release_year %}
-                        <span class="badge bg-secondary">{{ film.release_year }}</span>
-                        {% endif %}
-                        {% if film.duration %}
-                        <span class="badge bg-info">{{ film.duration }} хв</span>
-                        {% endif %}
-                        {% if film.age_rating %}
-                        <span class="badge bg-warning text-dark">{{ film.age_rating }}</span>
-                        {% endif %}
+        <div class="col-lg-4 col-md-6 mb-4">
+            <div class="film-card-wrapper">
+                <div class="card h-100">
+                    {% if film.image %}
+                    <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}">
+                    {% else %}
+                    <div class="placeholder-img card-img-top">
+                        <div class="text-center">
+                            <i class="fas fa-film fa-3x mb-2" style="opacity: 0.3;"></i>
+                            <p class="mb-0">Немає зображення</p>
+                        </div>
                     </div>
-                    
-                    <!-- Рейтинг -->
-                    <div class="mb-2">
-                        {% if film.review_count() > 0 %}
-                            <span class="text-warning">
-                                {% for i in range(film.average_rating()|int) %}⭐{% endfor %}
-                            </span>
-                            <small class="text-muted">{{ film.average_rating() }}/5 ({{ film.review_count() }})</small>
-                        {% else %}
-                            <small class="text-muted">Немає відгуків</small>
-                        {% endif %}
-                    </div>
-                    
-                    <p class="card-text flex-grow-1">
-                        {% if film.description %}
-                        {{ film.description[:120] }}{% if film.description|length > 120 %}...{% endif %}
-                        {% else %}
-                        Опис відсутній.
-                        {% endif %}
-                    </p>
-                    
-                    <!-- Кнопки -->
-                    <div class="d-flex gap-2 mt-auto">
-                        {% if current_user.is_authenticated %}
-                        <form method="POST" action="{{ url_for('user.toggle_favorite', film_id=film.id) }}" style="flex: 0 0 auto;">
-                            <button type="submit" class="btn btn-sm {{ 'btn-danger' if film.is_favorited_by(current_user) else 'btn-outline-danger' }}" 
-                                    title="{% if film.is_favorited_by(current_user) %}Видалити з обраних{% else %}Додати до обраних{% endif %}">
-                                {% if film.is_favorited_by(current_user) %}
-                                    ❤️
-                                {% else %}
-                                    🤍
-                                {% endif %}
-                            </button>
-                        </form>
-                        {% endif %}
-                        <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-primary flex-grow-1">Сеанси та квитки</a>
+                    {% endif %}
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title">{{ film.title }}</h5>
+                        
+                        <!-- Додаткова інформація -->
+                        <div class="mb-2">
+                            {% if film.genre %}
+                            <span class="badge bg-primary"><i class="fas fa-tag"></i> {{ film.genre }}</span>
+                            {% endif %}
+                            {% if film.release_year %}
+                            <span class="badge bg-secondary"><i class="fas fa-calendar"></i> {{ film.release_year }}</span>
+                            {% endif %}
+                            {% if film.duration %}
+                            <span class="badge bg-secondary"><i class="fas fa-clock"></i> {{ film.duration }} хв</span>
+                            {% endif %}
+                            {% if film.age_rating %}
+                            <span class="badge bg-warning"><i class="fas fa-user-shield"></i> {{ film.age_rating }}</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Рейтинг -->
+                        <div class="mb-3">
+                            {% if film.review_count() > 0 %}
+                                <span class="stars">
+                                    {% for i in range(film.average_rating()|int) %}⭐{% endfor %}
+                                </span>
+                                <small class="text-muted">{{ "%.1f"|format(film.average_rating()) }}/5 ({{ film.review_count() }})</small>
+                            {% else %}
+                                <small class="text-muted">Немає відгуків</small>
+                            {% endif %}
+                        </div>
+                        
+                        <p class="card-text flex-grow-1 text-muted">
+                            {% if film.description %}
+                            {{ film.description[:120] }}{% if film.description|length > 120 %}...{% endif %}
+                            {% else %}
+                            Опис відсутній.
+                            {% endif %}
+                        </p>
+                        
+                        <!-- Кнопки -->
+                        <div class="d-flex gap-2 mt-auto">
+                            {% if current_user.is_authenticated %}
+                            <form method="POST" action="{{ url_for('user.toggle_favorite', film_id=film.id) }}" style="flex: 0 0 auto;">
+                                <button type="submit" class="btn btn-sm {{ 'btn-danger' if film.is_favorited_by(current_user) else 'btn-outline-primary' }}" 
+                                        title="{% if film.is_favorited_by(current_user) %}Видалити з обраних{% else %}Додати до обраних{% endif %}">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-ticket-alt"></i> Сеанси та квитки
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -89,10 +162,11 @@
     </div>
     {% else %}
     <div class="alert alert-info text-center">
+        <i class="fas fa-search fa-3x mb-3" style="display: block; opacity: 0.5;"></i>
         {% if search_query %}
-        За запитом "{{ search_query }}" нічого не знайдено.
+        <p class="mb-0">За запитом "<strong>{{ search_query }}</strong>" нічого не знайдено.</p>
         {% else %}
-        Фільмів ще немає.
+        <p class="mb-0">Фільмів ще немає.</p>
         {% endif %}
     </div>
     {% endif %}

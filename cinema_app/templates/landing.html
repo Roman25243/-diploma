@@ -1,63 +1,192 @@
 {% extends "base.html" %}
+
+{% block title %}CinemaBook - Головна{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* Героїчна секція */
+    .hero-section {
+        text-align: center;
+        padding: 4rem 0;
+        animation: fadeInUp 1s ease;
+    }
+
+    .hero-section h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .hero-section p {
+        font-size: 1.3rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+    }
+
+    @keyframes fadeInUp {
+        from {
+            opacity: 0;
+            transform: translateY(30px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .cta-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .btn-lg {
+        padding: 1rem 2.5rem;
+        border-radius: 50px;
+        font-size: 1.1rem;
+    }
+
+    /* Секція фільмів */
+    .section-title {
+        font-size: 2.5rem;
+        font-weight: 700;
+        margin-bottom: 3rem;
+        text-align: center;
+        text-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .film-card-wrapper {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .film-card-wrapper:hover .card {
+        transform: translateY(-10px);
+    }
+
+    /* Секція переваг */
+    .features-section {
+        padding: 4rem 0;
+        margin-top: 3rem;
+    }
+
+    .feature-box {
+        background: rgba(26, 31, 58, 0.6);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 20px;
+        text-align: center;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+
+    .feature-box:hover {
+        transform: translateY(-5px);
+        background: rgba(26, 31, 58, 0.8);
+        border-color: rgba(139, 92, 246, 0.4);
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.2);
+    }
+
+    .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+
+    .feature-title {
+        font-size: 1.4rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+    }
+
+    .stars {
+        color: #ffd700;
+    }
+
+    @media (max-width: 768px) {
+        .hero-section h1 {
+            font-size: 2.5rem;
+        }
+        .hero-section p {
+            font-size: 1rem;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Герой-секція -->
-<div class="bg-dark text-white py-5 mb-5" style="background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('https://via.placeholder.com/1920x800') center/cover no-repeat;">
-    <div class="container text-center py-5">
-        <h1 class="display-4 fw-bold">Ласкаво просимо до нашого кінотеатру</h1>
-        <p class="lead mb-4">Бронюйте квитки онлайн з комфортом</p>
-        <a href="{{ url_for('main.films') }}" class="btn btn-danger btn-lg">Переглянути афішу</a>
+<div class="hero-section">
+    <h1>🎬 Вітаємо в CinemaBook</h1>
+    <p>Ваш ідеальний спосіб бронювати квитки в кіно онлайн</p>
+    <div class="cta-buttons">
+        <a href="{{ url_for('main.films') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-ticket-alt"></i> Переглянути афішу
+        </a>
+        <a href="#features" class="btn btn-secondary btn-lg">
+            <i class="fas fa-info-circle"></i> Дізнатися більше
+        </a>
     </div>
 </div>
 
 <!-- Популярні фільми -->
 <div class="container mb-5">
-    <h2 class="text-center mb-4">Популярні фільми зараз</h2>
+    <h2 class="section-title">🔥 Зараз у прокаті</h2>
     {% if popular_films %}
     <div class="row">
         {% for film in popular_films %}
-        <div class="col-md-3 mb-4">
-            <div class="card h-100 shadow-sm border-0">
-                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-small" alt="{{ film.title }}">
-                <div class="card-body text-center">
-                    <h5 class="card-title">{{ film.title }}</h5>
-                    
-                    <!-- Додаткова інформація -->
-                    <div class="mb-2">
-                        {% if film.genre %}
-                        <span class="badge bg-primary">{{ film.genre }}</span>
-                        {% endif %}
-                        {% if film.release_year %}
-                        <span class="badge bg-secondary">{{ film.release_year }}</span>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Рейтинг -->
-                    <div class="mb-2">
-                        {% if film.review_count() > 0 %}
-                            <span class="text-warning">
-                                {% for i in range(film.average_rating()|int) %}⭐{% endfor %}
-                            </span>
-                            <br>
-                            <small class="text-muted">{{ film.average_rating() }}/5</small>
-                        {% else %}
-                            <small class="text-muted">Немає відгуків</small>
-                        {% endif %}
-                    </div>
-                    
-                    <!-- Кнопки -->
-                    <div class="d-flex gap-2 justify-content-center">
-                        {% if current_user.is_authenticated %}
-                        <form method="POST" action="{{ url_for('user.toggle_favorite', film_id=film.id) }}">
-                            <button type="submit" class="btn btn-sm {{ 'btn-danger' if film.is_favorited_by(current_user) else 'btn-outline-danger' }}">
-                                {% if film.is_favorited_by(current_user) %}
-                                    ❤️
-                                {% else %}
-                                    🤍
-                                {% endif %}
-                            </button>
-                        </form>
-                        {% endif %}
-                        <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-primary">Детальніше</a>
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="film-card-wrapper">
+                <div class="card h-100">
+                    <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-small" alt="{{ film.title }}">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">{{ film.title }}</h5>
+                        
+                        <!-- Додаткова інформація -->
+                        <div class="mb-2">
+                            {% if film.genre %}
+                            <span class="badge bg-primary">{{ film.genre }}</span>
+                            {% endif %}
+                            {% if film.release_year %}
+                            <span class="badge bg-secondary">{{ film.release_year }}</span>
+                            {% endif %}
+                            {% if film.duration %}
+                            <span class="badge bg-secondary"><i class="fas fa-clock"></i> {{ film.duration }} хв</span>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Рейтинг -->
+                        <div class="mb-3">
+                            {% if film.review_count() > 0 %}
+                                <span class="stars">
+                                    {% for i in range(film.average_rating()|int) %}⭐{% endfor %}
+                                </span>
+                                <br>
+                                <small class="text-muted">{{ "%.1f"|format(film.average_rating()) }}/5</small>
+                            {% else %}
+                                <small class="text-muted">Без рейтингу</small>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Кнопки -->
+                        <div class="d-flex gap-2 justify-content-center">
+                            {% if current_user.is_authenticated %}
+                            <form method="POST" action="{{ url_for('user.toggle_favorite', film_id=film.id) }}" class="d-inline">
+                                <button type="submit" class="btn btn-sm {{ 'btn-danger' if film.is_favorited_by(current_user) else 'btn-outline-primary' }}" title="{{ 'Видалити з обраних' if film.is_favorited_by(current_user) else 'Додати до обраних' }}">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                            </form>
+                            {% endif %}
+                            <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-info-circle"></i> Детальніше
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -66,35 +195,66 @@
     </div>
     {% else %}
     <div class="alert alert-info text-center">
-        <p>Фільмів поки немає. Адміністратор скоро додасть нові фільми!</p>
+        <i class="fas fa-film" style="font-size: 3rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+        <p class="mb-0">Фільмів поки немає. Адміністратор скоро додасть нові фільми!</p>
     </div>
     {% endif %}
 </div>
 
 <!-- Переваги -->
-<div class="bg-light py-5">
+<div class="features-section" id="features">
     <div class="container">
-        <h2 class="text-center mb-5">Чому обирають нас</h2>
-        <div class="row text-center">
-            <div class="col-md-4">
-                <div class="mb-4">
-                    <h4>Зручне бронювання</h4>
-                    <p>Обирайте місця онлайн з будь-якого пристрою</p>
+        <h2 class="section-title">✨ Чому обирають CinemaBook?</h2>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="feature-box">
+                    <div class="feature-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <h3 class="feature-title">Швидке бронювання</h3>
+                    <p class="text-muted">Забронюйте квитки за лічені секунди прямо з дому</p>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="mb-4">
-                    <h4>Електронні квитки</h4>
-                    <p>Отримуйте QR-код на email — без черг</p>
+            <div class="col-md-4 mb-4">
+                <div class="feature-box">
+                    <div class="feature-icon">
+                        <i class="fas fa-couch"></i>
+                    </div>
+                    <h3 class="feature-title">Вибір місць</h3>
+                    <p class="text-muted">Оберіть свої ідеальні місця на інтерактивній схемі залу</p>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="mb-4">
-                    <h4>Найкращі ціни</h4>
-                    <p>Акції та знижки для постійних клієнтів</p>
+            <div class="col-md-4 mb-4">
+                <div class="feature-box">
+                    <div class="feature-icon">
+                        <i class="fas fa-envelope"></i>
+                    </div>
+                    <h3 class="feature-title">Email-підтвердження</h3>
+                    <p class="text-muted">Отримуйте квитки та сповіщення прямо на пошту</p>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Плавна прокрутка до секції переваг
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+        anchor.addEventListener('click', function (e) {
+            const href = this.getAttribute('href');
+            if (href !== '#' && href.startsWith('#')) {
+                e.preventDefault();
+                const target = document.querySelector(href);
+                if (target) {
+                    target.scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}
