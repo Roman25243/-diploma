@@ -124,3 +124,44 @@ def send_booking_cancellation_email(user, session, seat):
         html_body=html_body,
         app=current_app._get_current_object()
     )
+
+
+def send_session_cancellation_email(user, session):
+    """
+    Відправка email про скасування сеансу адміністратором
+    
+    Args:
+        user: Об'єкт користувача
+        session: Об'єкт сеансу
+    """
+    from flask import current_app
+    
+    # Формування URL для каталогу фільмів
+    films_url = url_for('main.films', _external=True)
+    
+    # Рендеринг шаблонів
+    html_body = render_template(
+        'emails/session_cancelled.html',
+        user_name=user.name,
+        film_title=session.film.title,
+        session_time=session.start_time,
+        films_url=films_url
+    )
+    
+    text_body = render_template(
+        'emails/session_cancelled.txt',
+        user_name=user.name,
+        film_title=session.film.title,
+        session_time=session.start_time,
+        films_url=films_url
+    )
+    
+    # Відправка email
+    send_email(
+        subject=f'Скасування сеансу: {session.film.title}',
+        sender=current_app.config['MAIL_DEFAULT_SENDER'],
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body,
+        app=current_app._get_current_object()
+    )

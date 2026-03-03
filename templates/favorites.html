@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container">
+    <h1 class="text-center mb-5">❤️ Мої обрані фільми</h1>
+    
+    {% if films %}
+    <p class="text-muted mb-4">Усього обраних: <strong>{{ films|length }}</strong></p>
+    
+    <div class="row">
+        {% for film in films %}
+        <div class="col-md-3 col-sm-6 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if film.image %}
+                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" 
+                     class="card-img-top" 
+                     alt="{{ film.title }}">
+                {% else %}
+                <div class="card-img-top placeholder-img">
+                    <span class="text-muted">Немає зображення</span>
+                </div>
+                {% endif %}
+                
+                <div class="card-body d-flex flex-column">
+                    <h6 class="card-title">{{ film.title }}</h6>
+                    
+                    <!-- Бейджі -->
+                    <div class="mb-2">
+                        {% if film.genre %}
+                        <span class="badge bg-primary">{{ film.genre }}</span>
+                        {% endif %}
+                        {% if film.release_year %}
+                        <span class="badge bg-secondary">{{ film.release_year }}</span>
+                        {% endif %}
+                        {% if film.duration %}
+                        <span class="badge bg-info">{{ film.duration }} хв</span>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Рейтинг -->
+                    <div class="mb-3">
+                        {% if film.review_count() > 0 %}
+                            <span class="text-warning">
+                                {% for i in range(film.average_rating()|int) %}⭐{% endfor %}
+                            </span>
+                            <small class="text-muted">{{ film.average_rating() }}/5</small>
+                        {% else %}
+                            <small class="text-muted">Немає відгуків</small>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Кнопки -->
+                    <div class="mt-auto">
+                        <a href="{{ url_for('main.film_detail', film_id=film.id) }}" 
+                           class="btn btn-sm btn-primary w-100 mb-2">
+                            Переглянути
+                        </a>
+                        
+                        <form method="POST" 
+                              action="{{ url_for('user.remove_from_favorites', film_id=film.id) }}"
+                              onsubmit="return confirm('Видалити з обраних?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger w-100">
+                                ❌ Видалити
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info text-center py-5">
+        <h4 class="mb-3">📭 У вас поки немає обраних фільмів</h4>
+        <p class="mb-4">Додайте фільми до обраних, щоб не загубити цікаві прем'єри!</p>
+        <a href="{{ url_for('main.films') }}" class="btn btn-primary btn-lg">
+            Переглянути фільми
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

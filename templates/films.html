@@ -21,9 +21,11 @@
         <div class="col-md-4 mb-4">
             <div class="card h-100 shadow-sm">
                 {% if film.image %}
-                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}" style="height: 400px; object-fit: cover;">
+                <img src="{{ url_for('static', filename='uploads/' + film.image) }}" class="card-img-top" alt="{{ film.title }}">
                 {% else %}
-                <img src="{{ url_for('static', filename='placeholder.jpg') }}" class="card-img-top" alt="Немає зображення" style="height: 400px; object-fit: cover; background-color: #e9ecef;">
+                <div class="card-img-top placeholder-img">
+                    <span class="text-muted">Немає зображення</span>
+                </div>
                 {% endif %}
                 <div class="card-body d-flex flex-column">
                     <h5 class="card-title">{{ film.title }}</h5>
@@ -63,7 +65,23 @@
                         Опис відсутній.
                         {% endif %}
                     </p>
-                    <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-primary mt-auto">Сеанси та квитки</a>
+                    
+                    <!-- Кнопки -->
+                    <div class="d-flex gap-2 mt-auto">
+                        {% if current_user.is_authenticated %}
+                        <form method="POST" action="{{ url_for('user.toggle_favorite', film_id=film.id) }}" style="flex: 0 0 auto;">
+                            <button type="submit" class="btn btn-sm {{ 'btn-danger' if film.is_favorited_by(current_user) else 'btn-outline-danger' }}" 
+                                    title="{% if film.is_favorited_by(current_user) %}Видалити з обраних{% else %}Додати до обраних{% endif %}">
+                                {% if film.is_favorited_by(current_user) %}
+                                    ❤️
+                                {% else %}
+                                    🤍
+                                {% endif %}
+                            </button>
+                        </form>
+                        {% endif %}
+                        <a href="{{ url_for('main.film_detail', film_id=film.id) }}" class="btn btn-primary flex-grow-1">Сеанси та квитки</a>
+                    </div>
                 </div>
             </div>
         </div>

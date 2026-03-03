@@ -97,6 +97,217 @@
             background-color: #343a40 !important;
         }
         
+        /* Загальні стилі для карток */
+        .card {
+            overflow: hidden !important;
+        }
+        
+        .card img {
+            max-width: 100% !important;
+        }
+        
+        /* Адаптивна сітка для карток */
+        @media (max-width: 1400px) {
+            .col-md-3 {
+                flex: 0 0 auto;
+                width: 25%;
+            }
+        }
+        
+        @media (max-width: 1200px) {
+            .col-md-3 {
+                flex: 0 0 auto;
+                width: 33.333333%;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .col-md-3, .col-md-4 {
+                flex: 0 0 auto;
+                width: 50%;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .col-md-3, .col-md-4 {
+                flex: 0 0 auto;
+                width: 100%;
+            }
+        }
+        
+        /* Адаптивні стилі для зображень постерів */
+        .card-img-top {
+            width: 100% !important;
+            height: 400px !important;
+            object-fit: cover !important;
+            object-position: center !important;
+            display: block !important;
+        }
+        
+        /* Адаптивність для менших екранів */
+        @media (max-width: 1200px) {
+            .card-img-top {
+                height: 350px !important;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .card-img-top {
+                height: 320px !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .card-img-top {
+                height: 280px !important;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .card-img-top {
+                height: 240px !important;
+            }
+        }
+        
+        /* Менший розмір постерів для схожих/популярних фільмів */
+        .card-img-small {
+            width: 100% !important;
+            height: 300px !important;
+            object-fit: cover !important;
+            object-position: center !important;
+            display: block !important;
+        }
+        
+        @media (max-width: 1200px) {
+            .card-img-small {
+                height: 280px !important;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .card-img-small {
+                height: 250px !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .card-img-small {
+                height: 220px !important;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .card-img-small {
+                height: 200px !important;
+            }
+        }
+        
+        /* Плейсхолдер для зображень */
+        .placeholder-img {
+            width: 100% !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            background-color: #e9ecef !important;
+        }
+        
+        [data-bs-theme="dark"] .placeholder-img {
+            background-color: #343a40 !important;
+        }
+        
+        /* Плейсхолдер успадковує висоту від card-img-top */
+        .placeholder-img.card-img-top {
+            height: 400px !important;
+        }
+        
+        @media (max-width: 1200px) {
+            .placeholder-img.card-img-top {
+                height: 350px !important;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .placeholder-img.card-img-top {
+                height: 320px !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .placeholder-img.card-img-top {
+                height: 280px !important;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .placeholder-img.card-img-top {
+                height: 240px !important;
+            }
+        }
+        
+        /* Плейсхолдер успадковує висоту від card-img-small */
+        .placeholder-img.card-img-small {
+            height: 300px !important;
+        }
+        
+        @media (max-width: 1200px) {
+            .placeholder-img.card-img-small {
+                height: 280px !important;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .placeholder-img.card-img-small {
+                height: 250px !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .placeholder-img.card-img-small {
+                height: 220px !important;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .placeholder-img.card-img-small {
+                height: 200px !important;
+            }
+        }
+        
+        /* Стилі для детальної сторінки фільму */
+        .film-detail-poster {
+            max-width: 100% !important;
+            width: 100% !important;
+            height: auto !important;
+            max-height: 600px !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin: 0 auto !important;
+        }
+        
+        @media (max-width: 1200px) {
+            .film-detail-poster {
+                max-height: 500px !important;
+            }
+        }
+        
+        @media (max-width: 992px) {
+            .film-detail-poster {
+                max-height: 450px !important;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .film-detail-poster {
+                max-height: 400px !important;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .film-detail-poster {
+                max-height: 350px !important;
+            }
+        }
+        
         /* Розділення з футером */
         footer {
             margin-top: auto;
@@ -118,7 +329,9 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('main.films') }}">Фільми</a></li>
                     {% if current_user.is_authenticated %}
+                        <li class="nav-item"><a class="nav-link" href="{{ url_for('user.favorites') }}">❤️ Обрані</a></li>
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('user.profile') }}">Особистий кабінет</a></li>
                         {% if current_user.is_admin %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}">Адмін-панель</a></li>

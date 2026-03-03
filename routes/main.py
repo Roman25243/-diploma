@@ -46,7 +46,8 @@ def films():
 def film_detail(film_id):
     """Детальна інформація про фільм"""
     film = Film.query.get_or_404(film_id)
-    sessions = Session.query.filter_by(film_id=film_id).all()
+    # Показуємо лише активні сеанси
+    sessions = Session.query.filter_by(film_id=film_id, status='active').all()
     
     # Відгуки (сортування за датою, новіші першими)
     reviews = Review.query.filter_by(film_id=film_id).order_by(Review.created_at.desc()).all()

@@ -139,11 +139,51 @@ def sessions():
     form = SessionForm()
     films = Film.query.all()
     
+    # Відміна сеансу
+    if request.method == 'POST' and 'cancel_session' in request.form:
+        session_id = request.form['cancel_session']
+        session = Session.query.get_or_404(session_id)
+        
+        if session.status == 'cancelled':
+            flash('Сеанс вже скасовано', 'warning')
+        else:
+            # Відміна сеансу
+            session.status = 'cancelled'
+            
+            # Звільняємо всі заброньовані місця
+            booked_seats = [seat for seat in session.seats if seat.status == 'booked']
+            affected_users = []
+            
+            for seat in booked_seats:
+                if seat.booking:
+                    user = seat.booking.user
+                    if user not in affected_users:
+                        affected_users.append(user)
+                    # Видаляємо бронювання
+                    db.session.delete(seat.booking)
+                # Звільняємо місце
+                seat.status = 'free'
+            
+            db.session.commit()
+            
+            # Відправляємо email користувачам про відміну
+            try:
+                from utils import send_session_cancellation_email
+                for user in affected_users:
+                    send_session_cancellation_email(user, session)
+            except Exception as e:
+                current_app.logger.error(f'Помилка відправки email: {str(e)}')
+            
+            flash(f'Сеанс скасовано. Повідомлено {len(affected_users)} користувачів.', 'success')
+        
+        return redirect(url_for('admin.sessions'))
+    
     if form.validate_on_submit():
         session = Session(
             film_id=request.form['film_id'],
             start_time=form.start_time.data,
-            price=form.price.data
+            price=form.price.data,
+            status='active'
         )
         db.session.add(session)
         db.session.commit()
@@ -157,5 +197,5 @@ def sessions():
         flash('Сеанс додано з 120 місцями', 'success')
         return redirect(url_for('admin.sessions'))
     
-    sessions = Session.query.all()
+    sessions = Session.query.order_by(Session.start_time.desc()).all()
     return render_template('admin/sessions.html', films=films, sessions=sessions, form=form)
