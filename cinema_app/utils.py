@@ -165,3 +165,94 @@ def send_session_cancellation_email(user, session):
         html_body=html_body,
         app=current_app._get_current_object()
     )
+
+
+def notify_favorites_about_new_sessions(session):
+    """
+    Відправка повідомлень користувачам про нові сеанси обраних фільмів
+    Надсилається лише одне повідомлення на день для кожного фільму
+    
+    Args:
+        session: Об'єкт новоствореного сеансу
+    """
+    from flask import current_app
+    from models import Favorite, User, SessionNotification
+    from extensions import db
+    from datetime import datetime
+    
+    try:
+        # Витягуємо дату з start_time (формат "YYYY-MM-DD HH:MM")
+        session_date = session.start_time.split(' ')[0]
+        
+        # Перевіряємо, чи вже надсилали повідомлення про цей фільм на цей день
+        existing_notification = SessionNotification.query.filter_by(
+            film_id=session.film_id,
+            session_date=session_date
+        ).first()
+        
+        if existing_notification:
+            # Вже надсилали повідомлення для цього фільму на цей день
+            return
+        
+        # Знаходимо всіх користувачів, у яких цей фільм в обраних
+        favorites = Favorite.query.filter_by(film_id=session.film_id).all()
+        
+        if not favorites:
+            # Немає користувачів з цим фільмом в обраних
+            return
+        
+        # Отримуємо всі сеанси цього фільму на цей день
+        all_sessions_today = [s for s in session.film.sessions 
+                            if s.start_time.startswith(session_date) and s.status == 'active']
+        
+        # Формування URL для сторінки фільму
+        from flask import url_for
+        film_url = url_for('main.film_detail', film_id=session.film_id, _external=True)
+        
+        # Надсилаємо повідомлення кожному користувачу
+        for favorite in favorites:
+            user = favorite.user
+            
+            # Рендеринг шаблонів
+            html_body = render_template(
+                'emails/new_sessions_notification.html',
+                user_name=user.name,
+                film_title=session.film.title,
+                session_date=session_date,
+                sessions=all_sessions_today,
+                film_url=film_url
+            )
+            
+            text_body = render_template(
+                'emails/new_sessions_notification.txt',
+                user_name=user.name,
+                film_title=session.film.title,
+                session_date=session_date,
+                sessions=all_sessions_today,
+                film_url=film_url
+            )
+            
+            # Відправка email
+            send_email(
+                subject=f'Нові сеанси: {session.film.title}',
+                sender=current_app.config['MAIL_DEFAULT_SENDER'],
+                recipients=[user.email],
+                text_body=text_body,
+                html_body=html_body,
+                app=current_app._get_current_object()
+            )
+        
+        # Записуємо, що надіслали повідомлення для цього фільму на цей день
+        notification_record = SessionNotification(
+            film_id=session.film_id,
+            session_date=session_date
+        )
+        db.session.add(notification_record)
+        db.session.commit()
+        
+        current_app.logger.info(f'Надіслано {len(favorites)} повідомлень про нові сеанси фільму {session.film.title} на {session_date}')
+        
+    except Exception as e:
+        current_app.logger.error(f'Помилка надсилання повідомлень про нові сеанси: {str(e)}')
+        # Не падаємо, просто логуємо помилку
+        db.session.rollback()

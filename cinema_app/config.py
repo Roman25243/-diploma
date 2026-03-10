@@ -7,6 +7,10 @@ load_dotenv()
 class Config:
     """Конфігурація додатку"""
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'super_secret_key'
+    
+    # База даних - PostgreSQL або SQLite
+    # Для PostgreSQL встановіть DATABASE_URL у .env файлі:
+    # DATABASE_URL=postgresql://username:password@localhost:5432/cinema_db
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///database.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = 'static/uploads'

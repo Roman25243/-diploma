@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, abort, jsonify
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from sqlalchemy import func
@@ -224,9 +224,9 @@ def calendar():
             'full_date': day.strftime('%d.%m.%Y')
         })
     
-    # Часові слоти (з 9:00 до 23:00 з кроком 1 година)
+    # Часові слоти (з 9:00 до 23:00 з кроком 3 години)
     time_slots = []
-    for hour in range(9, 24):
+    for hour in range(9, 24, 3):
         time_slots.append(f"{hour:02d}:00")
     
     # Отримуємо всі сеанси на цей тиждень
@@ -243,7 +243,23 @@ def calendar():
             # Парсимо час сеансу
             session_datetime = datetime.strptime(session.start_time, '%Y-%m-%d %H:%M')
             session_date = session_datetime.date()
-            session_time = session_datetime.strftime('%H:00')  # Округлюємо до години
+            
+            # Округлюємо до найближчого 3-годинного слоту (9, 12, 15, 18, 21)
+            hour = session_datetime.hour
+            if hour < 9:
+                slot_hour = 9
+            elif hour < 12:
+                slot_hour = 9
+            elif hour < 15:
+                slot_hour = 12
+            elif hour < 18:
+                slot_hour = 15
+            elif hour < 21:
+                slot_hour = 18
+            else:
+                slot_hour = 21
+            
+            session_time = f"{slot_hour:02d}:00"
             
             # Ключ: (дата, час)
             key = (session_date.isoformat(), session_time)
@@ -315,3 +331,55 @@ def create_session_from_calendar():
         flash(f'Помилка: {str(e)}', 'danger')
     
     return redirect(url_for('admin.calendar') + f'?week={request.form.get("week_offset", 0)}')
+
+
+@admin_bp.route('/sessions/<int:session_id>/cancel', methods=['POST'])
+@login_required
+@admin_required
+def cancel_session_api(session_id):
+    """API для скасування сеансу з календаря"""
+    from utils import send_session_cancellation_email
+    
+    session = Session.query.get_or_404(session_id)
+    
+    if session.status == 'cancelled':
+        return jsonify({'error': 'Сеанс вже скасовано'}), 400
+    
+    try:
+        # Отримуємо дані перед зміною статусу
+        film_title = session.film.title
+        session_time = session.start_time
+        
+        # Отримуємо всі місця для цього сеансу
+        seats = Seat.query.filter_by(session_id=session.id).all()
+        
+        # Збираємо унікальних користувачів, які мають бронювання
+        users_to_notify = []
+        seen_user_ids = set()
+        
+        for seat in seats:
+            # Для кожного місця перевіряємо бронювання
+            bookings = Booking.query.filter_by(seat_id=seat.id).all()
+            for booking in bookings:
+                if booking.user_id not in seen_user_ids:
+                    user = User.query.get(booking.user_id)
+                    if user and user.email:
+                        users_to_notify.append(user)
+                        seen_user_ids.add(booking.user_id)
+        
+        # Скасовуємо сеанс
+        session.status = 'cancelled'
+        db.session.commit()
+        
+        # Відправка email користувачам після успішного збереження
+        for user in users_to_notify:
+            try:
+                send_session_cancellation_email(user, session)
+            except Exception as e:
+                print(f"Помилка відправки email до {user.email}: {e}")
+        
+        return jsonify({'success': True, 'message': 'Сеанс скасовано'}), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"Помилка скасування сеансу: {e}")
+        return jsonify({'error': str(e)}), 500

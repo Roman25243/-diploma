@@ -6,64 +6,97 @@
 <style>
     .page-header {
         text-align: center;
-        padding: 2rem 0;
+        padding: 2.5rem 0;
+        margin-bottom: 1rem;
     }
 
     .page-header h1 {
-        font-size: 2.5rem;
-        font-weight: 800;
-        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        font-size: 3rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #a78bfa 0%, #ec4899 50%, #f59e0b 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+        text-shadow: 0 0 30px rgba(167, 139, 250, 0.3);
+        letter-spacing: 1px;
     }
 
     .calendar-grid {
-        font-size: 0.9rem;
+        font-size: 0.95rem;
         border-collapse: separate;
         border-spacing: 0;
-        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3);
-        background: rgba(10, 14, 39, 0.6);
+        box-shadow: 0 15px 40px rgba(139, 92, 246, 0.4), 0 5px 15px rgba(236, 72, 153, 0.2);
+        background: rgba(10, 14, 39, 0.8);
+        border-radius: 15px;
+        overflow: hidden;
     }
 
     .calendar-grid th,
     .calendar-grid td {
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        padding: 0.5rem;
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        padding: 0.75rem;
     }
 
     .calendar-cell {
-        min-height: 90px;
+        min-height: 120px;
         position: relative;
-        background-color: rgba(26, 31, 58, 0.4);
-        transition: background-color 0.2s ease;
+        background: linear-gradient(135deg, rgba(26, 31, 58, 0.5) 0%, rgba(30, 35, 65, 0.5) 100%);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow: hidden;
     }
 
     .calendar-cell:hover {
-        background-color: rgba(139, 92, 246, 0.1);
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%);
     }
 
     .session-card {
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        backdrop-filter: blur(10px);
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        box-shadow: 0 6px 15px rgba(0,0,0,0.4), 0 2px 6px rgba(139, 92, 246, 0.2);
+        border: 2px solid rgba(139, 92, 246, 0.4);
+        backdrop-filter: blur(15px);
         cursor: pointer;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .session-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        transition: left 0.6s;
+    }
+
+    .session-card:hover::before {
+        left: 100%;
     }
 
     .session-card.bg-success {
-        background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+        background: linear-gradient(135deg, #10b981 0%, #059669 70%, #047857 100%) !important;
+        border-color: #34d399;
     }
 
     .session-card.bg-secondary {
-        background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
-        opacity: 0.7;
+        background: linear-gradient(135deg, #6b7280 0%, #4b5563 70%, #374151 100%) !important;
+        opacity: 0.8;
+        border-color: #9ca3af;
+        position: relative;
+        cursor: default;
+    }
+
+    .session-card.bg-secondary:hover {
+        opacity: 1;
+        border-color: #8b5cf6;
     }
 
     .session-card:hover {
-        transform: translateY(-4px) scale(1.03);
-        box-shadow: 0 8px 16px rgba(139, 92, 246, 0.4);
+        transform: translateY(-3px) scale(1.02);
+        box-shadow: 0 12px 24px rgba(139, 92, 246, 0.5), 0 6px 12px rgba(236, 72, 153, 0.3);
         z-index: 10;
+        border-color: #a78bfa;
     }
 
     .session-card .progress {
@@ -76,56 +109,173 @@
         background-color: #fbbf24;
     }
 
-    .empty-slot {
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(236, 72, 153, 0.05) 100%) !important;
-        border: 2px dashed rgba(139, 92, 246, 0.4) !important;
-        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        border-radius: 8px !important;
+    /* Кнопка скасування сеансу */
+    .cancel-session-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.9);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        transition: all 0.3s ease;
         cursor: pointer;
-        height: 90px;
+        z-index: 20;
+        padding: 0;
+    }
+
+    .session-card:hover .cancel-session-btn {
+        opacity: 1;
+    }
+
+    .cancel-session-btn:hover {
+        background: rgba(220, 38, 38, 1);
+        transform: scale(1.15);
+        box-shadow: 0 2px 8px rgba(239, 68, 68, 0.6);
+    }
+
+    .cancel-session-btn i {
+        font-size: 0.7rem;
+        color: white;
+    }
+
+    /* Кнопка додавання нового сеансу на місці скасованого */
+    .add-new-session-btn {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        border: 1px solid rgba(167, 139, 250, 0.5);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        z-index: 15;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .add-new-session-btn:hover {
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+        transform: scale(1.05);
+        box-shadow: 0 2px 8px rgba(139, 92, 246, 0.6);
+    }
+
+    .add-new-session-btn i {
+        font-size: 0.65rem;
+    }
+
+    .empty-slot {
+        background: linear-gradient(to right, rgba(10, 14, 39, 0.95) 0%, rgba(26, 31, 58, 0.9) 100%) !important;
+        border: 2px dashed rgba(139, 92, 246, 0.4) !important;
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        border-radius: 12px !important;
+        cursor: pointer;
+        height: 110px;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .empty-slot::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle at center, rgba(139, 92, 246, 0.05), transparent);
+        opacity: 0;
+        transition: opacity 0.4s;
+    }
+
+    .empty-slot:hover::after {
+        opacity: 1;
     }
 
     .empty-slot:hover {
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%) !important;
-        border-color: #8b5cf6 !important;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.15) 50%, rgba(245, 158, 11, 0.1) 100%) !important;
+        border-color: #a78bfa !important;
         border-style: solid !important;
-        transform: scale(1.05);
+        transform: scale(1.02);
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.4), 0 0 30px rgba(236, 72, 153, 0.2);
     }
 
     .empty-slot .text-muted {
-        transition: all 0.3s ease;
-        color: #94a3b8;
+        transition: all 0.4s ease;
+        color: #6b7280;
+        position: relative;
+        z-index: 1;
     }
 
     .empty-slot:hover .text-muted {
-        color: #a78bfa !important;
+        color: #c4b5fd !important;
+        transform: scale(1.1);
+    }
+
+    .empty-slot:hover i {
+        animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.15); }
     }
 
     thead th {
         position: sticky;
         top: 0;
-        background: linear-gradient(to bottom, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.2) 100%);
+        background: linear-gradient(to right, rgba(10, 14, 39, 0.95) 0%, rgba(26, 31, 58, 0.9) 100%);
         z-index: 100;
-        font-weight: 600;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-        border-bottom: 2px solid rgba(139, 92, 246, 0.4);
-        color: #a78bfa;
+        font-weight: 700;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.4), 0 2px 4px rgba(139, 92, 246, 0.3);
+        border-bottom: 3px solid rgba(139, 92, 246, 0.5);
+        color: #c4b5fd !important;
+        padding: 1rem 0.75rem !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 0.9rem;
+    }
+
+    /* Всі елементи всередині заголовків */
+    thead th * {
+        color: #c4b5fd !important;
+    }
+
+    /* Перший заголовок (Час) */
+    thead th:first-child {
+        background: linear-gradient(to right, rgba(10, 14, 39, 0.95) 0%, rgba(26, 31, 58, 0.9) 100%);
+        border-right: 3px solid rgba(139, 92, 246, 0.5);
+        color: #c4b5fd !important;
     }
 
     .calendar-grid td:first-child {
         position: sticky;
         left: 0;
-        background: linear-gradient(to right, rgba(139, 92, 246, 0.2) 0%, rgba(26, 31, 58, 0.8) 100%);
+        background: linear-gradient(to right, rgba(10, 14, 39, 0.95) 0%, rgba(26, 31, 58, 0.9) 100%);
         z-index: 9;
-        font-weight: 600;
-        border-right: 2px solid rgba(139, 92, 246, 0.4);
+        font-weight: 700;
+        border-right: 3px solid rgba(139, 92, 246, 0.5);
+        color: #c4b5fd !important;
+        font-size: 1.1rem;
+    }
+
+    /* Верхній лівий кут (перетин заголовків) */
+    thead th:first-child {
+        z-index: 110;
     }
 
     .legend-card {
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%);
-        border: 1px solid rgba(139, 92, 246, 0.3);
-        border-radius: 15px;
-        padding: 1rem;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.12) 50%, rgba(245, 158, 11, 0.08) 100%);
+        border: 2px solid rgba(139, 92, 246, 0.4);
+        border-radius: 20px;
+        padding: 1.25rem;
+        box-shadow: 0 8px 20px rgba(139, 92, 246, 0.25), 0 4px 10px rgba(236, 72, 153, 0.15);
+        backdrop-filter: blur(10px);
     }
 
     @keyframes fadeInUp {
@@ -141,25 +291,72 @@
 
     .session-card,
     .empty-slot {
-        animation: fadeInUp 0.3s ease-out;
+        animation: fadeInUp 0.4s ease-out;
+    }
+
+    /* Стилі для кнопок навігації */
+    .btn-primary {
+        background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%);
+        border: 2px solid rgba(139, 92, 246, 0.5);
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+        border-color: #a78bfa;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(139, 92, 246, 0.6);
+    }
+
+    .btn-outline-light {
+        border: 2px solid rgba(167, 139, 250, 0.4);
+        transition: all 0.3s ease;
+    }
+
+    .btn-outline-light:hover {
+        background: rgba(167, 139, 250, 0.2);
+        border-color: #a78bfa;
+        transform: scale(1.05);
+    }
+
+    /* Покращені значки */
+    .badge {
+        font-size: 0.9rem;
+        padding: 0.6rem 1.2rem;
+        border-radius: 12px;
+        font-weight: 600;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+        transition: all 0.3s ease;
+    }
+
+    .badge:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.4);
     }
 
     /* Стилі для модального вікна */
-    .modal-backdrop {
-        z-index: 1040 !important;
+    #createSessionModal {
+        background-color: rgba(0, 0, 0, 0.8) !important;
+        z-index: 99999 !important;
     }
 
-    .modal {
-        z-index: 1050 !important;
+    #createSessionModal .modal-dialog {
+        z-index: 100000 !important;
     }
 
-    .modal-dialog {
-        z-index: 1055 !important;
+    #createSessionModal .modal-content {
+        background: linear-gradient(135deg, rgba(26, 31, 58, 0.98) 0%, rgba(45, 27, 78, 0.98) 100%);
+        border: 2px solid rgba(139, 92, 246, 0.5);
+        box-shadow: 0 20px 60px rgba(139, 92, 246, 0.6);
+        z-index: 100001 !important;
     }
 
-    .modal-content {
-        position: relative;
-        pointer-events: auto;
+    #createSessionModal .modal-body {
+        max-height: 60vh;
+        overflow-y: auto;
     }
 
     /* Кнопка закриття модального вікна */
@@ -178,7 +375,6 @@
         background-color: rgba(26, 31, 58, 0.6);
         border: 1px solid rgba(139, 92, 246, 0.4);
         color: #e0e0e0;
-        pointer-events: auto;
     }
 
     .modal .form-control:focus,
@@ -193,7 +389,6 @@
         background-color: rgba(139, 92, 246, 0.2);
         border: 1px solid rgba(139, 92, 246, 0.4);
         color: #a78bfa;
-        pointer-events: auto;
     }
 
     .modal .form-label {
@@ -202,8 +397,16 @@
     }
 
     .modal .btn {
-        pointer-events: auto;
         cursor: pointer;
+    }
+
+    /* Відступ знизу для контейнера, щоб футер не перекривав */
+    .container-fluid {
+        padding-bottom: 300px;
+    }
+
+    .table-responsive {
+        margin-bottom: 4rem;
     }
 </style>
 {% endblock %}
@@ -278,7 +481,7 @@
                     {% for day in week_days %}
                     <th class="text-center" style="width: 14%;">
                         <div><strong>{{ day.day_name }}</strong></div>
-                        <div class="text-muted small">{{ day.full_date }}</div>
+                        <div class="small" style="color: #a78bfa; opacity: 0.8;">{{ day.full_date }}</div>
                     </th>
                     {% endfor %}
                 </tr>
@@ -296,17 +499,23 @@
                             <!-- Існуючі сеанси -->
                             {% for session in sessions_grid[key] %}
                             <div class="session-card mb-1 p-2 rounded-3 {% if session.status == 'active' %}bg-success{% else %}bg-secondary{% endif %} text-white" 
-                                 style="font-size: 0.8rem; min-height: 85px;">
-                                <div class="d-flex justify-content-between align-items-start mb-1">
-                                    <div class="fw-bold text-truncate flex-grow-1" title="{{ session.film_title }}" style="font-size: 0.85rem;">
-                                        🎬 {{ session.film_title[:18] }}{% if session.film_title|length > 18 %}...{% endif %}
+                                 style="font-size: 0.85rem; min-height: 100px; border-radius: 12px !important;"
+                                 data-session-id="{{ session.id }}">
+                                {% if session.status == 'active' %}
+                                <button class="cancel-session-btn" data-session-id="{{ session.id }}" title="Скасувати сеанс">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div class="fw-bold text-truncate flex-grow-1" title="{{ session.film_title }}" style="font-size: 0.95rem;">
+                                        🎬 {{ session.film_title[:20] }}{% if session.film_title|length > 20 %}...{% endif %}
                                     </div>
                                 </div>
-                                <div class="small opacity-90 mb-1">
-                                    <i class="fas fa-clock"></i> {{ session.exact_time }}
+                                <div class="small opacity-90 mb-2" style="font-size: 0.85rem;">
+                                    <i class="fas fa-clock"></i> <strong>{{ session.exact_time }}</strong>
                                 </div>
-                                <div class="small opacity-90 mb-1">
-                                    <i class="fas fa-money-bill-wave"></i> {{ session.price }} грн
+                                <div class="small opacity-90 mb-2" style="font-size: 0.85rem;">
+                                    <i class="fas fa-money-bill-wave"></i> <strong>{{ session.price }} грн</strong>
                                 </div>
                                 {% if session.status == 'active' %}
                                     {% set total_seats = session.booked + session.available %}
@@ -325,17 +534,23 @@
                                     <div class="small">
                                         <i class="fas fa-times-circle"></i> Скасовано
                                     </div>
+                                    <button class="add-new-session-btn" 
+                                            data-date="{{ day.date.isoformat() }}" 
+                                            data-time="{{ time_slot }}"
+                                            title="Додати новий сеанс">
+                                        <i class="fas fa-plus"></i> Новий
+                                    </button>
                                 {% endif %}
                             </div>
                             {% endfor %}
                         {% else %}
                             <!-- Вільний слот -->
                             <div class="empty-slot p-2 text-center d-flex flex-column justify-content-center align-items-center" 
-                                 data-date="{{ day.date }}" 
+                                 data-date="{{ day.date.isoformat() }}" 
                                  data-time="{{ time_slot }}">
                                 <div class="text-muted">
-                                    <i class="fas fa-plus-circle" style="font-size: 2rem;"></i>
-                                    <div class="mt-1 small fw-bold">Додати</div>
+                                    <i class="fas fa-plus-circle" style="font-size: 2.5rem;"></i>
+                                    <div class="mt-2 small fw-bold" style="font-size: 0.9rem; letter-spacing: 0.5px;">Додати сеанс</div>
                                 </div>
                             </div>
                         {% endif %}
@@ -349,9 +564,9 @@
 </div>
 
 <!-- Модальне вікно для створення сеансу -->
-<div class="modal fade" id="createSessionModal" tabindex="-1" aria-labelledby="createSessionModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background: linear-gradient(135deg, rgba(26, 31, 58, 0.98) 0%, rgba(45, 27, 78, 0.98) 100%); border: 1px solid rgba(139, 92, 246, 0.3); box-shadow: 0 20px 60px rgba(139, 92, 246, 0.4);">
+<div class="modal fade" id="createSessionModal" tabindex="-1" aria-labelledby="createSessionModalLabel" aria-hidden="true" data-bs-backdrop="false">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content">
             <div class="modal-header" style="border-bottom: 1px solid rgba(139, 92, 246, 0.3);">
                 <h5 class="modal-title" id="createSessionModalLabel" style="color: #a78bfa;"><i class="fas fa-plus-circle"></i> Створити новий сеанс</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -406,13 +621,51 @@
 </div>
 
 <script>
+// Скасування сеансу
+function cancelSession(event, sessionId) {
+    event.stopPropagation(); // Зупиняємо поширення події, щоб не спрацював клік на картці
+    
+    if (confirm('Ви впевнені, що хочете скасувати цей сеанс?')) {
+        // Відправка POST запиту на скасування
+        fetch(`/admin/sessions/${sessionId}/cancel`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json().then(data => ({status: response.status, data: data})))
+        .then(result => {
+            if (result.status === 200) {
+                // Перезавантажуємо сторінку після успішного скасування
+                location.reload();
+            } else {
+                alert('Помилка: ' + (result.data.error || result.data.message || 'Невідома помилка'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Помилка при скасуванні сеансу: ' + error.message);
+        });
+    }
+}
+
 // Відкриття модального вікна для створення сеансу
 function openCreateModal(date, time) {
     document.getElementById('modalDate').value = date;
-    document.getElementById('modalDateDisplay').value = date;
+    
+    // Форматуємо дату для відображення (з ISO формату в зрозумілий формат)
+    const dateObj = new Date(date);
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const year = dateObj.getFullYear();
+    document.getElementById('modalDateDisplay').value = `${day}.${month}.${year}`;
+    
     document.getElementById('modalTime').value = time;
     
-    var modal = new bootstrap.Modal(document.getElementById('createSessionModal'));
+    var modal = new bootstrap.Modal(document.getElementById('createSessionModal'), {
+        backdrop: false,
+        keyboard: true
+    });
     modal.show();
 }
 
@@ -422,6 +675,25 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('.session-progress').forEach(function(bar) {
         var width = bar.getAttribute('data-width');
         bar.style.width = width + '%';
+    });
+    
+    // Клік на кнопку скасування сеансу
+    document.querySelectorAll('.cancel-session-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(event) {
+            event.stopPropagation();
+            var sessionId = this.getAttribute('data-session-id');
+            cancelSession(event, sessionId);
+        });
+    });
+    
+    // Клік на кнопку додавання нового сеансу (на місці скасованого)
+    document.querySelectorAll('.add-new-session-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(event) {
+            event.stopPropagation();
+            var date = this.getAttribute('data-date');
+            var time = this.getAttribute('data-time');
+            openCreateModal(date, time);
+        });
     });
     
     // Клік на вільний слот
@@ -435,8 +707,11 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Клік на існуючий сеанс
     document.querySelectorAll('.session-card').forEach(function(card) {
-        card.addEventListener('click', function() {
-            window.location.href = "{{ url_for('admin.sessions') }}";
+        card.addEventListener('click', function(event) {
+            // Не переходимо на сторінку сеансів для скасованих сеансів
+            if (!this.classList.contains('bg-secondary')) {
+                window.location.href = "{{ url_for('admin.sessions') }}";
+            }
         });
     });
 });

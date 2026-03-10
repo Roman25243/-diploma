@@ -8,7 +8,7 @@ class User(UserMixin, db.Model):
     """Модель користувача"""
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(100), unique=True)
-    password = db.Column(db.String(100))
+    password = db.Column(db.String(255))  # Збільшено для хешованих паролів
     name = db.Column(db.String(100))
     is_admin = db.Column(db.Boolean, default=False)
     bookings = db.relationship('Booking', backref='user', lazy=True)
@@ -110,6 +110,7 @@ class Session(db.Model):
     start_time = db.Column(db.String(50))
     price = db.Column(db.Float)
     status = db.Column(db.String(20), default='active')  # active, cancelled
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)  # Коли сеанс було створено
     seats = db.relationship('Seat', backref='session', lazy=True)
     
     def is_cancelled(self):
@@ -169,3 +170,19 @@ class Favorite(db.Model):
     
     def __repr__(self):
         return f'<Favorite User:{self.user_id} Film:{self.film_id}>'
+
+
+class SessionNotification(db.Model):
+    """Запис про надіслані повідомлення про нові сеанси"""
+    id = db.Column(db.Integer, primary_key=True)
+    film_id = db.Column(db.Integer, db.ForeignKey('film.id'), nullable=False)
+    notification_date = db.Column(db.String(20), nullable=False)  # Дата коли надіслали повідомлення (YYYY-MM-DD)
+    notified_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Унікальність: одне повідомлення на фільм на день (розсилки)
+    __table_args__ = (
+        db.UniqueConstraint('film_id', 'notification_date', name='unique_film_notification_date'),
+    )
+    
+    def __repr__(self):
+        return f'<SessionNotification Film:{self.film_id} NotificationDate:{self.notification_date}>'
