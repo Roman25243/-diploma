@@ -103,6 +103,24 @@
     <div class="session-info">
         <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
         <p class="mb-0">Ціна квитка: <span class="price-badge">{{ session.price }} грн</span></p>
+        {% if existing_bookings_count > 0 %}
+        <hr style="margin: 1rem 0; border-color: rgba(139, 92, 246, 0.3);">
+        <p class="mb-0" style="font-size: 0.95rem;">
+            <i class="fas fa-info-circle"></i> 
+            Ви вже забронювали <strong>{{ existing_bookings_count }}</strong> {{ 'місце' if existing_bookings_count == 1 else 'місця' if existing_bookings_count < 5 else 'місць' }} на цей сеанс.
+            <br>
+            {% if remaining_slots > 0 %}
+            <span style="color: #28a745;">Можете обрати ще <strong>{{ remaining_slots }}</strong> {{ 'місце' if remaining_slots == 1 else 'місця' if remaining_slots < 5 else 'місць' }}.</span>
+            {% else %}
+            <span style="color: #dc3545;">Досягнуто максимум (5 місць на сеанс).</span>
+            {% endif %}
+        </p>
+        {% else %}
+        <hr style="margin: 1rem 0; border-color: rgba(139, 92, 246, 0.3);">
+        <p class="mb-0" style="font-size: 0.95rem;">
+            <i class="fas fa-info-circle"></i> Максимум <strong>5 місць</strong> на один сеанс
+        </p>
+        {% endif %}
     </div>
 
     <div class="screen">
@@ -131,7 +149,8 @@
                 {% for seat in seats %}
                 <button type="button" class="seat {{ 'booked' if seat.status == 'booked' else 'free' }}"
                         {% if seat.status =='booked' %}disabled{% endif %}
-                        onclick="toggleSeat(this, {{ seat.id }})">
+                        data-seat-id="{{ seat.id }}"
+                        onclick="toggleSeat(this)">
                     {{ seat.row }}-{{ seat.number }}
                 </button>
                 {% endfor %}
@@ -148,16 +167,36 @@
     </div>
 </div>
 
+<script type="application/json" id="session-data">
+{
+    "price": {{ session.price }},
+    "existingBookings": {{ existing_bookings_count }},
+    "remainingSlots": {{ remaining_slots }},
+    "maxSeats": 5
+}
+</script>
+
 <script>
 let selected = [];
-const seatPrice = {{ session.price }};
+const sessionData = JSON.parse(document.getElementById('session-data').textContent);
+const seatPrice = sessionData.price;
+const existingBookings = sessionData.existingBookings;
+const remainingSlots = sessionData.remainingSlots;
+const maxSeats = sessionData.maxSeats;
 
-function toggleSeat(btn, id) {
+function toggleSeat(btn) {
     if (btn.classList.contains('booked')) return;
+    const id = parseInt(btn.getAttribute('data-seat-id'));
+    
     if (btn.classList.contains('selected')) {
         btn.classList.remove('selected');
         selected = selected.filter(s => s !== id);
     } else {
+        // Перевірка максимуму
+        if (selected.length >= remainingSlots) {
+            alert(`Ви можете вибрати максимум ${remainingSlots} ${remainingSlots === 1 ? 'місце' : remainingSlots < 5 ? 'місця' : 'місць'}${existingBookings > 0 ? ` (вже заброньовано ${existingBookings})` : ''}`);
+            return;
+        }
         btn.classList.add('selected');
         selected.push(id);
     }

@@ -13,8 +13,9 @@
     }
 
     .auth-card {
-        max-width: 450px;
+        max-width: 500px;
         width: 100%;
+        margin: 0 auto;
     }
 
     .auth-header {
@@ -68,14 +69,14 @@
 
 {% block content %}
 <div class="auth-container">
-    <div class="auth-card">
-        <div class="auth-header">
-            <h2><i class="fas fa-user-plus"></i> Реєстрація</h2>
-            <p>Створіть новий обліковий запис</p>
-        </div>
+        <div class="auth-card mx-auto">
+            <div class="auth-header">
+                <h2><i class="fas fa-user-plus"></i> Реєстрація</h2>
+                <p>Створіть новий обліковий запис</p>
+            </div>
 
-        <div class="card">
-            <div class="card-body p-4">
+            <div class="card">
+                <div class="card-body p-4">
                 <form method="POST" novalidate>
                     {{ form.hidden_tag() }}
                     
@@ -144,5 +145,4 @@
             </div>
         </div>
     </div>
-</div>
 {% endblock %}

@@ -225,15 +225,30 @@
 
 <!-- Chart.js скрипти -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script type="application/json" id="chart-data">
+{
+    "popularFilms": {
+        "labels": {{ stats.popular_films.labels|tojson }},
+        "data": {{ stats.popular_films.data|tojson }}
+    },
+    "revenueFilms": {
+        "labels": {{ stats.revenue_films.labels|tojson }},
+        "data": {{ stats.revenue_films.data|tojson }}
+    }
+}
+</script>
 <script>
+    // Отримання даних для графіків
+    const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+
     // Популярність фільмів
     new Chart(document.getElementById('popularFilmsChart'), {
         type: 'bar',
         data: {
-            labels: {{ stats.popular_films.labels|tojson }},
+            labels: chartData.popularFilms.labels,
             datasets: [{
                 label: 'Кількість бронювань',
-                data: {{ stats.popular_films.data|tojson }},
+                data: chartData.popularFilms.data,
                 backgroundColor: 'rgba(139, 92, 246, 0.8)',
                 borderColor: 'rgba(139, 92, 246, 1)',
                 borderWidth: 2
@@ -264,9 +279,9 @@
     new Chart(document.getElementById('revenueChart'), {
         type: 'doughnut',
         data: {
-            labels: {{ stats.revenue_films.labels|tojson }},
+            labels: chartData.revenueFilms.labels,
             datasets: [{
-                data: {{ stats.revenue_films.data|tojson }},
+                data: chartData.revenueFilms.data,
                 backgroundColor: [
                     '#8b5cf6', '#ec4899', '#10b981', '#fbbf24', '#3b82f6'
                 ],

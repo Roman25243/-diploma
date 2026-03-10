@@ -50,6 +50,21 @@ def seats(session_id):
             flash('Оберіть хоча б одне місце', 'warning')
             return redirect(url_for('user.seats', session_id=session_id))
 
+        # Перевірка максимальної кількості місць (5 на сеанс)
+        existing_bookings = Booking.query.join(Seat).filter(
+            Seat.session_id == session_id,
+            Booking.user_id == current_user.id
+        ).count()
+        
+        total_seats = existing_bookings + len(selected_seats)
+        if total_seats > 5:
+            remaining_slots = 5 - existing_bookings
+            if remaining_slots <= 0:
+                flash('Ви вже забронювали максимум 5 місць на цей сеанс', 'danger')
+            else:
+                flash(f'Ви можете забронювати максимум 5 місць на сеанс. У вас вже є {existing_bookings} бронювань, доступно ще {remaining_slots} місць.', 'warning')
+            return redirect(url_for('user.seats', session_id=session_id))
+
         booked_count = 0
         successfully_booked_seats = []
         
@@ -79,7 +94,18 @@ def seats(session_id):
             flash('Місця успішно заброньовано! Перевірте свою електронну пошту.', 'success')
         return redirect(url_for('user.profile'))
 
-    return render_template('seats.html', session=session, seats=seats)
+    # Підрахунок існуючих бронювань користувача на цей сеанс
+    existing_bookings_count = Booking.query.join(Seat).filter(
+        Seat.session_id == session_id,
+        Booking.user_id == current_user.id
+    ).count()
+    remaining_slots = 5 - existing_bookings_count
+
+    return render_template('seats.html', 
+                         session=session, 
+                         seats=seats,
+                         existing_bookings_count=existing_bookings_count,
+                         remaining_slots=remaining_slots)
 
 
 @user_bp.route('/cancel_booking/<int:booking_id>', methods=['POST'])
