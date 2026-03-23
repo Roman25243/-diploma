@@ -11,101 +11,15 @@ user_bp = Blueprint('user', __name__)
 @user_bp.route('/profile')
 @login_required
 def profile():
-    """Профіль користувача з історією бронювань"""
-    filter_type = request.args.get('filter', 'active')
-
-    bookings_query = Booking.query.options(
-        joinedload(Booking.seat)
-        .joinedload(Seat.session)
-        .joinedload(Session.film)
-    ).filter_by(user_id=current_user.id)
-
-    bookings = bookings_query.all()
-    total_spent = sum(b.seat.session.price for b in bookings)
-
-    return render_template(
-        'profile.html',
-        bookings=bookings,
-        total_spent=total_spent,
-        filter_type=filter_type
-    )
+    """Редірект на SPA версію"""
+    return redirect('/app/profile')
 
 
-@user_bp.route('/seats/<int:session_id>', methods=['GET', 'POST'])
+@user_bp.route('/seats/<int:session_id>')
 @login_required
 def seats(session_id):
-    """Вибір та бронювання місць на сеанс"""
-    session = Session.query.get_or_404(session_id)
-    
-    # Перевірка чи сеанс не скасовано
-    if session.status == 'cancelled':
-        flash('Цей сеанс скасовано. Будь ласка, оберіть інший.', 'danger')
-        return redirect(url_for('main.film_detail', film_id=session.film_id))
-    
-    seats = Seat.query.filter_by(session_id=session_id).order_by(Seat.row, Seat.number).all()
-
-    if request.method == 'POST':
-        selected_seats = request.form.getlist('seat')
-        if not selected_seats:
-            flash('Оберіть хоча б одне місце', 'warning')
-            return redirect(url_for('user.seats', session_id=session_id))
-
-        # Перевірка максимальної кількості місць (5 на сеанс)
-        existing_bookings = Booking.query.join(Seat).filter(
-            Seat.session_id == session_id,
-            Booking.user_id == current_user.id
-        ).count()
-        
-        total_seats = existing_bookings + len(selected_seats)
-        if total_seats > 5:
-            remaining_slots = 5 - existing_bookings
-            if remaining_slots <= 0:
-                flash('Ви вже забронювали максимум 5 місць на цей сеанс', 'danger')
-            else:
-                flash(f'Ви можете забронювати максимум 5 місць на сеанс. У вас вже є {existing_bookings} бронювань, доступно ще {remaining_slots} місць.', 'warning')
-            return redirect(url_for('user.seats', session_id=session_id))
-
-        booked_count = 0
-        successfully_booked_seats = []
-        
-        for seat_id in selected_seats:
-            seat = Seat.query.get(seat_id)
-            if seat.status == 'booked':
-                booked_count += 1
-            else:
-                seat.status = 'booked'
-                booking = Booking(user_id=current_user.id, seat_id=seat.id)
-                db.session.add(booking)
-                successfully_booked_seats.append(seat)
-        
-        db.session.commit()
-
-        # Відправка email-підтвердження (тільки якщо є успішно заброньовані місця)
-        if successfully_booked_seats:
-            try:
-                send_booking_confirmation_email(current_user, session, successfully_booked_seats)
-            except Exception as e:
-                # Логуємо помилку, але не показуємо користувачу (бронювання вже зроблено)
-                print(f"Email error: {e}")
-
-        if booked_count > 0:
-            flash(f'{booked_count} з вибраних місць вже були заброньовані іншими. Решта заброньовано успішно!', 'info')
-        else:
-            flash('Місця успішно заброньовано! Перевірте свою електронну пошту.', 'success')
-        return redirect(url_for('user.profile'))
-
-    # Підрахунок існуючих бронювань користувача на цей сеанс
-    existing_bookings_count = Booking.query.join(Seat).filter(
-        Seat.session_id == session_id,
-        Booking.user_id == current_user.id
-    ).count()
-    remaining_slots = 5 - existing_bookings_count
-
-    return render_template('seats.html', 
-                         session=session, 
-                         seats=seats,
-                         existing_bookings_count=existing_bookings_count,
-                         remaining_slots=remaining_slots)
+    """Редірект на SPA версію"""
+    return redirect(f'/app/seats/{session_id}')
 
 
 @user_bp.route('/cancel_booking/<int:booking_id>', methods=['POST'])
@@ -142,13 +56,8 @@ def cancel_booking(booking_id):
 @user_bp.route('/favorites')
 @login_required
 def favorites():
-    """Список обраних фільмів"""
-    favorites = Favorite.query.filter_by(user_id=current_user.id)\
-        .order_by(Favorite.added_at.desc()).all()
-    
-    films = [fav.film for fav in favorites]
-    
-    return render_template('favorites.html', films=films, favorites=favorites)
+    """Редірект на SPA версію"""
+    return redirect('/app/favorites')
 
 
 @user_bp.route('/favorite/toggle/<int:film_id>', methods=['POST'])
@@ -192,3 +101,10 @@ def remove_from_favorites(film_id):
     flash(f'"{film_title}" видалено з обраних', 'success')
     
     return redirect(request.referrer or url_for('user.favorites'))
+
+
+@user_bp.route('/app/')
+@user_bp.route('/app/<path:path>')
+def spa(path=''):
+    """Vue Router SPA — всі маршрути обробляються клієнтом"""
+    return render_template('spa.html')

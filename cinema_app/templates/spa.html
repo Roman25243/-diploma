@@ -1,0 +1,2757 @@
+{% extends "base.html" %}
+
+{% block title %}CinemaBook{% endblock %}
+
+{% block nav_items %}
+    <li class="nav-item"><a class="nav-link" href="/app/films"><i class="fas fa-ticket-alt"></i> Фільми</a></li>
+    <li class="nav-item spa-auth-link spa-auth-only" style="display:none;"><a class="nav-link" href="/app/favorites"><i class="fas fa-heart"></i> Обрані</a></li>
+    <li class="nav-item spa-auth-link spa-auth-only" style="display:none;"><a class="nav-link" href="/app/profile"><i class="fas fa-user"></i> Кабінет</a></li>
+    {% if current_user.is_authenticated and current_user.is_admin %}
+        <li class="nav-item spa-auth-link spa-admin-only" style="display:none;">
+            <a class="nav-link" href="/app/admin"><i class="fas fa-cog"></i> Адмін</a>
+        </li>
+    {% endif %}
+    <li class="nav-item spa-auth-link spa-auth-only" style="display:none;"><a class="nav-link" href="#" id="spa-logout-btn"><i class="fas fa-sign-out-alt"></i> Вихід</a></li>
+    <li class="nav-item spa-auth-link spa-guest-only" style="display:none;"><a class="nav-link" href="/app/login"><i class="fas fa-sign-in-alt"></i> Вхід</a></li>
+    <li class="nav-item spa-auth-link spa-guest-only" style="display:none;"><a class="nav-link" href="/app/register"><i class="fas fa-user-plus"></i> Реєстрація</a></li>
+{% endblock %}
+
+{% block extra_styles %}
+<style>
+    /* === Route transitions === */
+    .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+    .fade-enter-from, .fade-leave-to { opacity: 0; }
+    
+    .slide-fade-enter-active {
+        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .slide-fade-leave-active {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .slide-fade-enter-from {
+        transform: translateX(20px);
+        opacity: 0;
+    }
+    .slide-fade-leave-to {
+        transform: translateX(-20px);
+        opacity: 0;
+    }
+
+    /* === Breadcrumbs === */
+    .breadcrumbs {
+        background: linear-gradient(135deg, rgba(26, 31, 58, 0.6) 0%, rgba(30, 35, 65, 0.6) 100%);
+        backdrop-filter: blur(10px);
+        padding: 1rem 1.5rem;
+        border-radius: 15px;
+        margin-bottom: 1.5rem;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+    }
+    .breadcrumbs a {
+        color: #a78bfa;
+        text-decoration: none;
+        transition: color 0.3s ease;
+    }
+    .breadcrumbs a:hover {
+        color: #ec4899;
+    }
+    .breadcrumbs span {
+        color: rgba(255, 255, 255, 0.5);
+        margin: 0 0.5rem;
+    }
+    .breadcrumbs .active {
+        color: #fff;
+    }
+
+    /* === Skeleton loaders === */
+    .skeleton {
+        background: linear-gradient(90deg, 
+            rgba(139, 92, 246, 0.1) 25%, 
+            rgba(139, 92, 246, 0.2) 50%, 
+            rgba(139, 92, 246, 0.1) 75%);
+        background-size: 200% 100%;
+        animation: skeleton-loading 1.5s ease-in-out infinite;
+        border-radius: 8px;
+    }
+    @keyframes skeleton-loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    .skeleton-text {
+        height: 16px;
+        margin-bottom: 8px;
+    }
+    .skeleton-title {
+        height: 28px;
+        margin-bottom: 12px;
+        width: 70%;
+    }
+    .skeleton-card {
+        height: 400px;
+        border-radius: 15px;
+    }
+
+    /* === 404 Page === */
+    .not-found-container {
+        min-height: 60vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+    .not-found-content {
+        animation: fadeInUp 0.6s ease;
+    }
+    .not-found-number {
+        font-size: 10rem;
+        font-weight: 900;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 50%, #f59e0b 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        line-height: 1;
+        margin-bottom: 1rem;
+        text-shadow: 0 0 60px rgba(139, 92, 246, 0.5);
+    }
+    .not-found-text {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        color: #a78bfa;
+    }
+    .not-found-description {
+        font-size: 1.2rem;
+        color: rgba(255, 255, 255, 0.6);
+        margin-bottom: 2rem;
+    }
+
+    /* === Back to Top Button === */
+    .back-to-top {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+        transition: all 0.3s ease;
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+    }
+    .back-to-top.show {
+        opacity: 1;
+        visibility: visible;
+    }
+    .back-to-top:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 25px rgba(139, 92, 246, 0.6);
+    }
+
+    /* === Enhanced Loading States === */
+    .loading-spinner {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 400px;
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    .loading-spinner .spinner-border {
+        width: 4rem;
+        height: 4rem;
+        border-width: 0.3rem;
+        color: #8b5cf6;
+    }
+    .loading-text {
+        color: #a78bfa;
+        font-size: 1.1rem;
+        animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse {
+        0%, 100% { opacity: 0.6; }
+        50% { opacity: 1; }
+    }
+
+    /* === Improved Card Hover Effects === */
+    .card {
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .card:hover {
+        transform: translateY(-8px) scale(1.02);
+    }
+
+    /* === Smooth Scroll Behavior === */
+    html {
+        scroll-behavior: smooth;
+    }
+
+    /* === Shared === */
+    .loading-spinner { display: flex; justify-content: center; min-height: 400px; align-items: center; }
+    .section-title {
+        font-size: 1.8rem; font-weight: 700;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        margin: 2rem 0 1.5rem;
+    }
+
+    /* === Landing Page === */
+    .hero-section {
+        text-align: center;
+        padding: 4rem 0;
+        margin-bottom: 3rem;
+        animation: fadeInUp 1s ease;
+    }
+    .hero-section h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
+        margin-bottom: 1rem;
+        text-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    .hero-section p {
+        font-size: 1.3rem;
+        margin-bottom: 2rem;
+        opacity: 0.9;
+    }
+    @keyframes fadeInUp {
+        from { opacity: 0; transform: translateY(30px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    .cta-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-top: 2.5rem;
+    }
+    .cta-buttons .btn-lg {
+        padding: 1rem 2.5rem;
+        border-radius: 50px;
+        font-size: 1.1rem;
+    }
+    .features-section {
+        padding: 4rem 0;
+        margin-top: 3rem;
+    }
+    .feature-box {
+        background: rgba(26, 31, 58, 0.6);
+        backdrop-filter: blur(10px);
+        padding: 2rem;
+        border-radius: 20px;
+        text-align: center;
+        border: 1px solid rgba(139, 92, 246, 0.2);
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    .feature-box:hover {
+        transform: translateY(-5px);
+        background: rgba(26, 31, 58, 0.8);
+        border-color: rgba(139, 92, 246, 0.4);
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.2);
+    }
+    .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    .feature-title {
+        font-size: 1.3rem;
+        font-weight: 700;
+        margin-bottom: 0.75rem;
+        color: #a78bfa;
+    }
+    .card-img-small {
+        width: 100%;
+        height: 350px;
+        object-fit: contain;
+        background: rgba(26, 31, 58, 0.5);
+        transition: transform 0.3s ease;
+    }
+
+    /* === Films Page === */
+    .page-header { text-align: center; padding: 2rem 0 3rem; }
+    .page-header h1 {
+        font-size: 3rem; font-weight: 800; margin-bottom: 1rem;
+        background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .search-wrapper {
+        max-width: 800px;
+        margin: 0 auto 2rem;
+        position: relative;
+    }
+
+    .search-wrapper .input-group {
+        background: linear-gradient(135deg, rgba(20, 25, 55, 0.9) 0%, rgba(25, 30, 60, 0.9) 100%);
+        border: 2px solid rgba(139, 92, 246, 0.5);
+        box-shadow: 0 10px 30px rgba(139, 92, 246, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+
+    .search-wrapper .input-group:focus-within {
+        border-color: rgba(167, 139, 250, 0.8);
+        box-shadow: 0 10px 40px rgba(139, 92, 246, 0.5), 0 0 0 3px rgba(139, 92, 246, 0.2);
+    }
+
+    .search-wrapper input {
+        border: none;
+        padding: 1.2rem 1.5rem;
+        font-size: 1.1rem;
+        background: transparent !important;
+        color: #e9d5ff !important;
+        font-weight: 500;
+    }
+
+    .search-wrapper input::placeholder {
+        color: rgba(196, 181, 253, 0.5);
+    }
+
+    .search-wrapper input:focus {
+        outline: none;
+        box-shadow: none !important;
+    }
+
+    .search-wrapper .btn-outline-light {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.9) 0%, rgba(220, 38, 38, 0.95) 100%);
+        border: none;
+        color: white;
+        padding: 0 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+
+    .search-wrapper .btn-outline-light:hover {
+        background: linear-gradient(135deg, rgba(220, 38, 38, 1) 0%, rgba(185, 28, 28, 1) 100%);
+        transform: scale(1.05);
+    }
+
+    .genre-filter {
+        max-width: 900px;
+        margin: 0 auto 2.5rem;
+        text-align: center;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, rgba(15, 20, 45, 0.6) 0%, rgba(20, 25, 55, 0.6) 100%);
+        border-radius: 16px;
+        border: 2px solid rgba(139, 92, 246, 0.3);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    }
+
+    .genre-btn {
+        padding: 0.6rem 1.4rem;
+        border-radius: 25px;
+        font-size: 0.95rem;
+        margin: 0.4rem;
+        border: 2px solid rgba(139, 92, 246, 0.5);
+        background: linear-gradient(135deg, rgba(30, 35, 65, 0.8) 0%, rgba(35, 40, 75, 0.8) 100%);
+        color: #c4b5fd;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-weight: 600;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        text-transform: capitalize;
+    }
+
+    .genre-btn:hover {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.8) 0%, rgba(167, 139, 250, 0.8) 100%);
+        color: #fff;
+        border-color: rgba(167, 139, 250, 0.8);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+    }
+
+    .genre-btn.active {
+        background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+        color: #fff;
+        border-color: transparent;
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+        transform: scale(1.05);
+    }
+
+    .results-info {
+        text-align: center;
+        margin-bottom: 2rem;
+        color: #c4b5fd;
+        font-size: 1.1rem;
+        font-weight: 600;
+        padding: 1rem;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%);
+        border-radius: 12px;
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        max-width: 700px;
+        margin-left: auto;
+        margin-right: auto;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    .film-card-wrapper { height: 100%; }
+    .film-card-wrapper .card { cursor: pointer; display: flex; flex-direction: column; height: 100%; transition: all 0.3s ease; }
+    .film-card-wrapper .card:hover { transform: translateY(-8px); box-shadow: 0 15px 40px rgba(139, 92, 246, 0.3); }
+    .film-card-wrapper .card-body { display: flex; flex-direction: column; flex-grow: 1; }
+    .film-card-wrapper .card-title {
+        min-height: 56px; font-size: 1.15rem; font-weight: 600;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .film-card-wrapper .badge-container { min-height: 36px; display: flex; flex-wrap: wrap; gap: 0.25rem; margin-bottom: 0.75rem; }
+    .film-card-wrapper .card-text {
+        min-height: 72px; max-height: 72px; overflow: hidden;
+        display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; font-size: 0.9rem; line-height: 1.5;
+    }
+    .placeholder-img {
+        width: 100%; height: 350px; display: flex; align-items: center; justify-content: center;
+        background: rgba(26, 31, 58, 0.8); color: rgba(255,255,255,0.5); border-radius: 12px 12px 0 0;
+    }
+    .stars { color: #ffd700; }
+    .btn-fav { border: none; background: transparent; font-size: 1.2rem; cursor: pointer; transition: transform 0.2s; }
+    .btn-fav:hover { transform: scale(1.2); }
+
+    /* === Film Detail Page === */
+    .film-header { text-align: center; padding: 2rem 0; }
+    .film-header h1 {
+        font-size: 3rem; font-weight: 800;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .rating-display {
+        font-size: 1.2rem; text-align: center; padding: 1rem;
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 15px;
+    }
+    .rating-stars { color: #fbbf24; font-size: 1.5rem; }
+    .info-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 15px; padding: 1.5rem;
+    }
+    .info-row { display: flex; flex-wrap: wrap; gap: 1rem; }
+    .info-item { flex: 0 0 calc(50% - 0.5rem); padding: 0.5rem 0; }
+    .info-item strong { color: #a78bfa; }
+    .badge-genre {
+        background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 600;
+    }
+    .badge-age {
+        background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+        padding: 0.5rem 1rem; border-radius: 10px; font-weight: 600; color: #000;
+    }
+    .session-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 15px; padding: 1.5rem;
+        margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; transition: all 0.3s ease;
+    }
+    .session-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(139,92,246,0.3); }
+    .session-time { font-size: 1.2rem; font-weight: 600; }
+    .session-price {
+        font-size: 1.4rem; font-weight: 700;
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .review-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.05) 0%, rgba(236,72,153,0.05) 100%);
+        border: 1px solid rgba(139,92,246,0.2); border-radius: 15px; padding: 1.5rem; margin-bottom: 1rem;
+    }
+    .review-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .reviewer-name { font-weight: 700; color: #a78bfa; }
+    .review-form {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 15px; padding: 2rem;
+    }
+    .trailer-wrapper { border-radius: 15px; overflow: hidden; box-shadow: 0 10px 30px rgba(139,92,246,0.3); }
+    .film-detail-poster { width: 100%; height: auto; object-fit: cover; border-radius: 15px; }
+    .poster-section { position: sticky; top: 100px; }
+    .film-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; overflow: hidden;
+        transition: all 0.3s; height: 100%; display: flex; flex-direction: column; cursor: pointer;
+    }
+    .film-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(139,92,246,0.3); }
+    .film-card .card-img-top { width: 100%; height: 280px; object-fit: contain; background: rgba(26,31,58,0.5); }
+    .film-card .placeholder-img {
+        width: 100%; height: 280px; display: flex; align-items: center; justify-content: center;
+        background: rgba(26,31,58,0.8); color: rgba(255,255,255,0.3);
+    }
+    .film-card-body { padding: 1rem; background: rgba(26,31,58,0.4); flex-grow: 1; display: flex; flex-direction: column; }
+    .film-card-title {
+        font-size: 0.95rem; font-weight: 600; margin-bottom: 0.75rem; min-height: 44px;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .btn-fav-lg {
+        border: none; padding: 0.6rem 1.5rem; border-radius: 10px; cursor: pointer;
+        font-weight: 600; transition: all 0.3s; width: 100%;
+    }
+
+    /* === Profile Page === */
+    .profile-header { text-align: center; padding: 2rem 0; }
+    .profile-header h1 {
+        font-size: 3rem; font-weight: 800;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .profile-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 15px; padding: 2rem;
+        text-align: center; margin-bottom: 2rem;
+    }
+    .profile-avatar {
+        width: 100px; height: 100px; border-radius: 50%;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        display: flex; align-items: center; justify-content: center;
+        margin: 0 auto 1rem; font-size: 2.5rem; color: #fff;
+    }
+    .profile-name { font-size: 1.5rem; font-weight: 700; color: #a78bfa; }
+    .stats-row { display: flex; justify-content: center; gap: 2rem; margin-top: 1.5rem; flex-wrap: wrap; }
+    .stat-item { text-align: center; }
+    .stat-value {
+        font-size: 1.8rem; font-weight: 800;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .stat-label { font-size: 0.85rem; color: rgba(255,255,255,0.6); }
+    .filter-btns .btn { margin-right: 0.5rem; margin-bottom: 0.5rem; border-radius: 10px; }
+    .booking-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 15px; padding: 1.5rem;
+        margin-bottom: 1rem; transition: all 0.3s;
+    }
+    .booking-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(139,92,246,0.3); }
+    .booking-card.cancelled { opacity: 0.6; border-color: rgba(239,68,68,0.3); }
+    .badge-active { background: linear-gradient(135deg, #10b981, #059669); }
+    .badge-cancelled { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+    /* === Favorites Page === */
+    .fav-header { text-align: center; padding: 2rem 0; }
+    .fav-header h1 {
+        font-size: 3rem; font-weight: 800;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .fav-stats { text-align: center; margin-bottom: 2rem; }
+    .fav-stats .badge {
+        font-size: 1rem; padding: 0.5rem 1.5rem; border-radius: 10px;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+    }
+    .fav-film-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; overflow: hidden;
+        transition: all 0.3s; height: 100%; display: flex; flex-direction: column;
+    }
+    .fav-film-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(139,92,246,0.3); }
+    .fav-film-card .card-img-top { width: 100%; height: 330px; object-fit: contain; background: rgba(26,31,58,0.5); }
+    .fav-film-card .placeholder-img {
+        width: 100%; height: 330px; display: flex; align-items: center; justify-content: center;
+        background: rgba(26,31,58,0.8); color: rgba(255,255,255,0.3);
+    }
+    .fav-card-body { padding: 1rem; background: rgba(26,31,58,0.4); flex-grow: 1; display: flex; flex-direction: column; }
+    .fav-card-title {
+        font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; min-height: 44px;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .added-date { font-size: 0.8rem; color: rgba(255,255,255,0.5); }
+    .empty-state { text-align: center; padding: 4rem 0; color: rgba(255,255,255,0.5); }
+    .empty-state i { font-size: 4rem; margin-bottom: 1rem; }
+
+    /* === Seats Page === */
+    .seats-page-header { text-align: center; padding: 2rem 0 3rem; }
+    .seats-page-header h1 { font-size: 2.5rem; font-weight: 800; margin-bottom: 0.5rem; }
+    .session-info {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); padding: 1.5rem; border-radius: 15px;
+        margin-bottom: 3rem; text-align: center;
+    }
+    .price-badge {
+        font-size: 1.5rem; font-weight: 700;
+        background: linear-gradient(135deg, #28a745 0%, #20943a 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .screen-display {
+        background: linear-gradient(135deg, rgba(139,92,246,0.3) 0%, rgba(236,72,153,0.3) 100%);
+        color: white; text-align: center; padding: 20px; margin: 40px auto; border-radius: 15px;
+        font-weight: bold; font-size: 1.2rem; max-width: 600px;
+        box-shadow: 0 10px 30px rgba(139,92,246,0.4); letter-spacing: 2px;
+    }
+    .legend { display: flex; gap: 2rem; justify-content: center; margin-bottom: 2rem; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 0.5rem; }
+    .legend-seat { width: 30px; height: 30px; border-radius: 8px; display: inline-block; }
+    .seats-container { max-width: 800px; margin: 0 auto; }
+    .spa-seats-grid { display: grid; gap: 0.5rem; margin-bottom: 2rem; }
+    .seat-row { display: flex; align-items: center; gap: 0.5rem; }
+    .row-label { font-weight: 600; min-width: 40px; text-align: center; color: rgba(255,255,255,0.7); }
+    .spa-seat {
+        width: 40px; height: 40px; border: 2px solid transparent; border-radius: 8px;
+        cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center;
+        justify-content: center; font-size: 0.75rem; font-weight: 600;
+    }
+    .spa-seat.free {
+        background: linear-gradient(135deg, rgba(34,197,94,0.2) 0%, rgba(16,185,129,0.2) 100%);
+        border-color: rgba(34,197,94,0.5); color: #22c55e;
+    }
+    .spa-seat.free:hover {
+        background: linear-gradient(135deg, rgba(34,197,94,0.4) 0%, rgba(16,185,129,0.4) 100%);
+        border-color: #22c55e; transform: scale(1.1); box-shadow: 0 0 15px rgba(34,197,94,0.5);
+    }
+    .spa-seat.selected {
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        border-color: #ec4899; color: white; transform: scale(1.1); box-shadow: 0 0 20px rgba(236,72,153,0.6);
+    }
+    .spa-seat.booked {
+        background: linear-gradient(135deg, rgba(107,114,128,0.3) 0%, rgba(75,85,99,0.3) 100%);
+        border-color: rgba(107,114,128,0.5); color: #6b7280; cursor: not-allowed; opacity: 0.5;
+    }
+    .booking-summary {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); padding: 1.5rem; border-radius: 15px;
+        text-align: center; margin-top: 3rem;
+    }
+    .selected-count {
+        font-size: 2rem; font-weight: 700;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .btn-book {
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        border: none; color: white; padding: 1rem 3rem; border-radius: 50px;
+        font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;
+        box-shadow: 0 10px 30px rgba(139,92,246,0.3); margin-top: 1rem;
+    }
+    .btn-book:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 15px 40px rgba(236,72,153,0.4); }
+    .btn-book:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* === Auth Pages === */
+    .auth-container {
+        min-height: 70vh; display: flex; align-items: center; justify-content: center; padding: 2rem 0;
+    }
+    .auth-card { max-width: 500px; width: 100%; margin: 0 auto; }
+    .auth-header { text-align: center; margin-bottom: 2rem; }
+    .auth-header h2 {
+        font-size: 2.5rem; font-weight: 800;
+        background: linear-gradient(135deg, #a78bfa 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .auth-header p { color: rgba(255, 255, 255, 0.7); margin-top: 0.5rem; }
+    .auth-link { color: #a78bfa; text-decoration: none; font-weight: 500; transition: color 0.3s ease; }
+    .auth-link:hover { color: #ec4899; }
+    .btn-auth { width: 100%; padding: 0.75rem; font-size: 1.1rem; border-radius: 12px; }
+    .input-icon {
+        background: rgba(26, 31, 58, 0.6); border-color: rgba(139, 92, 246, 0.3); color: #a78bfa;
+    }
+    .field-error { color: #ff6b9d; font-size: 0.875rem; margin-top: 0.25rem; }
+
+    /* === Admin Pages === */
+    .admin-nav {
+        display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; justify-content: center;
+    }
+    .admin-nav .btn { border-radius: 10px; padding: 0.5rem 1.5rem; }
+    .stats-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.15) 0%, rgba(236,72,153,0.15) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 15px; padding: 2rem;
+        text-align: center; margin-bottom: 1.5rem; transition: all 0.3s ease;
+    }
+    .stats-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(139,92,246,0.3); }
+    .stats-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .stats-value {
+        font-size: 2.5rem; font-weight: 800;
+        background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .stats-label { color: #94a3b8; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; font-size: 0.9rem; }
+    .data-table {
+        background: linear-gradient(135deg, rgba(139,92,246,0.05) 0%, rgba(236,72,153,0.05) 100%);
+        border: 1px solid rgba(139,92,246,0.2); border-radius: 15px; overflow: hidden; margin-bottom: 2rem;
+    }
+    .data-table-header {
+        background: linear-gradient(135deg, rgba(139,92,246,0.2) 0%, rgba(236,72,153,0.2) 100%);
+        padding: 1.5rem; border-bottom: 1px solid rgba(139,92,246,0.3);
+    }
+    .data-table-header h5 { margin: 0; font-weight: 700; color: #a78bfa; }
+    .admin-table { margin-bottom: 0; color: #e5e7eb; }
+    .admin-table thead th { border-bottom: 2px solid rgba(139,92,246,0.3); color: #a78bfa; font-weight: 600; padding: 1rem; }
+    .admin-table tbody tr { border-bottom: 1px solid rgba(139,92,246,0.1); }
+    .admin-table tbody tr:hover { background: rgba(139,92,246,0.05); }
+    .admin-table tbody td { padding: 1rem; vertical-align: middle; }
+    .admin-form-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 15px; padding: 2rem; margin-bottom: 2rem;
+    }
+    .admin-form-card h4 { color: #a78bfa; font-weight: 700; margin-bottom: 1.5rem; }
+    .admin-film-card {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; overflow: hidden;
+        transition: all 0.3s; height: 100%; display: flex; flex-direction: column;
+    }
+    .admin-film-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(139,92,246,0.3); }
+    .admin-film-card .card-img-top { width: 100%; height: 280px; object-fit: contain; background: rgba(26,31,58,0.5); }
+    .admin-film-card .placeholder-img {
+        width: 100%; height: 280px; display: flex; align-items: center; justify-content: center;
+        background: rgba(26,31,58,0.8); color: rgba(255,255,255,0.3);
+    }
+    .admin-film-card-body { padding: 1rem; background: rgba(26,31,58,0.4); flex-grow: 1; display: flex; flex-direction: column; }
+    .session-row {
+        background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
+        border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; padding: 1rem 1.5rem;
+        margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center;
+        flex-wrap: wrap; gap: 0.5rem;
+    }
+    .session-row.cancelled { opacity: 0.5; border-color: rgba(239,68,68,0.3); }
+
+    /* === КАЛЕНДАР - ТЕМНИЙ СТИЛЬ === */
+    .week-nav-card {
+        background: linear-gradient(135deg, rgba(10, 15, 35, 0.9) 0%, rgba(15, 20, 45, 0.9) 100%);
+        border-radius: 12px;
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        padding: 1rem;
+    }
+
+    .legend-card {
+        background: linear-gradient(135deg, rgba(10, 15, 35, 0.9) 0%, rgba(15, 20, 45, 0.9) 100%);
+        border-radius: 12px;
+        border: 1px solid rgba(139, 92, 246, 0.4);
+        padding: 1rem;
+    }
+
+    .calendar-grid {
+        border-collapse: separate;
+        border-spacing: 0;
+        background: linear-gradient(135deg, rgba(5, 10, 30, 0.98) 0%, rgba(10, 15, 35, 0.98) 100%);
+        backdrop-filter: blur(15px);
+        border-radius: 16px;
+        overflow: hidden;
+        border: 2px solid rgba(139, 92, 246, 0.5);
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6), 0 0 30px rgba(139, 92, 246, 0.3);
+        font-size: 0.9rem;
+        width: 100%;
+        table-layout: fixed;
+    }
+
+    .calendar-grid th,
+    .calendar-grid td {
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        padding: 0.7rem 0.6rem;
+    }
+
+    .calendar-grid thead th {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.4) 0%, rgba(236, 72, 153, 0.35) 100%);
+        color: #ffffff !important;
+        font-weight: 800;
+        border-bottom: 3px solid rgba(139, 92, 246, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 0.8px;
+        font-size: 0.85rem;
+        padding: 0.9rem 0.6rem;
+        text-align: center;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .calendar-grid thead th .small {
+        font-weight: 600;
+        font-size: 0.7rem;
+        margin-top: 0.2rem;
+        display: block;
+        color: #e9d5ff;
+    }
+
+    .calendar-grid tbody td:first-child {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(236, 72, 153, 0.2) 100%);
+        font-weight: 800;
+        color: #e9d5ff;
+        text-align: center;
+        font-size: 0.95rem;
+        border-right: 2px solid rgba(139, 92, 246, 0.5);
+        padding: 0.6rem;
+        width: 70px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    .calendar-cell {
+        min-height: 85px;
+        height: 85px;
+        max-height: 85px;
+        vertical-align: top;
+        background: linear-gradient(135deg, rgba(15, 20, 45, 0.4) 0%, rgba(20, 25, 55, 0.4) 100%);
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .calendar-cell:hover {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(236, 72, 153, 0.15) 100%);
+        box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.4);
+    }
+
+    .session-card {
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        border: 1.5px solid rgba(139, 92, 246, 0.5);
+        backdrop-filter: blur(10px);
+        color: white !important;
+        position: relative;
+        overflow: hidden;
+        font-size: 0.85rem;
+        border-radius: 8px;
+        margin-bottom: 0.35rem;
+        padding: 0.6rem;
+        height: calc(100% - 0.35rem);
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .session-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, #8b5cf6 0%, #ec4899 100%);
+        opacity: 0.9;
+    }
+
+    .session-card .fw-bold {
+        font-size: 0.8rem;
+        font-weight: 700;
+        line-height: 1.3;
+        margin-bottom: 0.3rem;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        color: #ffffff;
+        padding-right: 28px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        display: block;
+        max-width: 100%;
+    }
+
+    .session-card .small {
+        font-size: 0.8rem;
+        font-weight: 600;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.95);
+        margin-bottom: 0.3rem;
+    }
+
+    .session-card.bg-success {
+        background: linear-gradient(135deg, rgba(34, 197, 94, 0.9) 0%, rgba(22, 163, 74, 0.95) 100%) !important;
+        border-color: rgba(74, 222, 128, 0.7);
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.35);
+    }
+
+    .session-card.bg-success::before {
+        background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+    }
+
+    .session-card.bg-secondary {
+        background: linear-gradient(135deg, rgba(75, 85, 99, 0.85) 0%, rgba(55, 65, 81, 0.9) 100%) !important;
+        border-color: rgba(107, 114, 128, 0.6);
+        box-shadow: 0 4px 12px rgba(75, 85, 99, 0.4);
+    }
+
+    .session-card.bg-secondary::before {
+        background: linear-gradient(90deg, #6b7280 0%, #9ca3af 100%);
+    }
+
+    .session-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 16px rgba(139, 92, 246, 0.5);
+        z-index: 10;
+        border-color: #a78bfa;
+    }
+
+    .cancel-session-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: rgba(239, 68, 68, 0.98);
+        border: 1.5px solid rgba(248, 113, 113, 0.7);
+        color: white;
+        padding: 2px 5px;
+        border-radius: 4px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        z-index: 15;
+        line-height: 1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        width: 20px;
+        height: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .cancel-session-btn:hover {
+        background: rgba(220, 38, 38, 1);
+        transform: scale(1.08);
+        box-shadow: 0 4px 10px rgba(239, 68, 68, 0.6);
+    }
+
+    .cancel-session-btn i {
+        font-size: 0.65rem;
+    }
+
+    .add-new-session-btn {
+        position: absolute;
+        bottom: 4px;
+        right: 4px;
+        background: rgba(139, 92, 246, 0.98);
+        border: 1.5px solid rgba(167, 139, 250, 0.7);
+        color: white;
+        padding: 3px 7px;
+        border-radius: 5px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        cursor: pointer;
+        transition: all 0.25s ease;
+        z-index: 15;
+        line-height: 1;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+    }
+
+    .add-new-session-btn:hover {
+        background: rgba(124, 58, 237, 1);
+        transform: scale(1.08);
+        box-shadow: 0 4px 10px rgba(139, 92, 246, 0.6);
+    }
+
+    .add-new-session-btn i {
+        font-size: 0.6rem;
+    }
+
+    .empty-slot {
+        background: linear-gradient(135deg, rgba(20, 25, 55, 0.4) 0%, rgba(25, 30, 60, 0.5) 100%);
+        border: 2px dashed rgba(139, 92, 246, 0.5);
+        transition: all 0.3s ease;
+        border-radius: 10px;
+        height: 100%;
+        min-height: 75px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .empty-slot:hover {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.25) 0%, rgba(236, 72, 153, 0.2) 100%);
+        border-color: #a78bfa;
+        border-style: solid;
+        box-shadow: inset 0 0 20px rgba(139, 92, 246, 0.35);
+    }
+
+    .empty-slot:hover .text-muted {
+        color: #e9d5ff !important;
+    }
+
+    .empty-slot .fa-plus-circle {
+        transition: all 0.3s ease;
+        font-size: 2rem;
+    }
+
+    .empty-slot:hover .fa-plus-circle {
+        transform: rotate(90deg);
+        color: #c4b5fd !important;
+    }
+
+    .empty-slot small {
+        font-size: 0.7rem;
+        margin-top: 0.3rem;
+        font-weight: 600;
+    }
+
+    .session-progress {
+        background: linear-gradient(90deg, #a78bfa 0%, #ec4899 100%);
+        border-radius: 3px;
+        height: 4px;
+        box-shadow: 0 2px 6px rgba(139, 92, 246, 0.5);
+    }
+
+    .progress {
+        background: rgba(0, 0, 0, 0.4);
+        border-radius: 3px;
+        overflow: hidden;
+        height: 4px;
+        margin-top: 0.2rem;
+    }
+
+    .table-responsive {
+        border-radius: 16px;
+        background: transparent;
+        padding: 0.5rem;
+        box-shadow: none;
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.9);
+        backdrop-filter: blur(10px);
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+        z-index: 9999;
+        animation: fadeIn 0.3s ease;
+        padding-top: 80px;
+        padding-bottom: 2rem;
+        overflow-y: auto;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modal-dialog {
+        animation: slideDown 0.3s ease;
+        margin: auto;
+        max-width: 500px;
+        width: 100%;
+    }
+
+    @keyframes slideDown {
+        from { 
+            opacity: 0;
+            transform: translateY(-50px);
+        }
+        to { 
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .modal-content {
+        background: linear-gradient(135deg, rgba(5, 10, 30, 0.98) 0%, rgba(15, 20, 45, 0.98) 100%) !important;
+        border: 2px solid rgba(139, 92, 246, 0.5) !important;
+        border-radius: 16px !important;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(139, 92, 246, 0.3) !important;
+        backdrop-filter: blur(20px);
+    }
+
+    .modal-header {
+        border-bottom: 2px solid rgba(139, 92, 246, 0.4) !important;
+        padding: 1.5rem;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(236, 72, 153, 0.1) 100%);
+    }
+
+    .modal-title {
+        color: #e9d5ff !important;
+        font-weight: 700;
+        font-size: 1.3rem;
+        text-shadow: 0 2px 8px rgba(139, 92, 246, 0.5);
+    }
+
+    .modal-body {
+        padding: 1.5rem;
+    }
+
+    .modal-footer {
+        border-top: 2px solid rgba(139, 92, 246, 0.4) !important;
+        padding: 1.2rem 1.5rem;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.05) 100%);
+    }
+
+    .modal-content .form-label {
+        color: #c4b5fd;
+        font-weight: 600;
+        margin-bottom: 0.6rem;
+        font-size: 0.95rem;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-content .form-control,
+    .modal-content .form-select {
+        background: linear-gradient(135deg, rgba(20, 25, 55, 0.8) 0%, rgba(25, 30, 60, 0.8) 100%) !important;
+        border: 2px solid rgba(139, 92, 246, 0.4) !important;
+        color: #e9d5ff !important;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-content .form-control:focus,
+    .modal-content .form-select:focus {
+        background: linear-gradient(135deg, rgba(25, 30, 60, 0.9) 0%, rgba(30, 35, 70, 0.9) 100%) !important;
+        border-color: rgba(167, 139, 250, 0.8) !important;
+        box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25), inset 0 2px 6px rgba(0, 0, 0, 0.4) !important;
+        color: #ffffff !important;
+    }
+
+    .modal-content .form-control::placeholder {
+        color: rgba(196, 181, 253, 0.5);
+    }
+
+    .modal-content .form-control[readonly] {
+        background: linear-gradient(135deg, rgba(30, 35, 65, 0.6) 0%, rgba(35, 40, 75, 0.6) 100%) !important;
+        border-color: rgba(139, 92, 246, 0.3) !important;
+        cursor: not-allowed;
+        opacity: 0.8;
+    }
+
+    .modal-content .input-group-text {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.3) 0%, rgba(236, 72, 153, 0.25) 100%) !important;
+        border: 2px solid rgba(139, 92, 246, 0.4) !important;
+        color: #e9d5ff !important;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal-content .btn-primary {
+        background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%) !important;
+        border: 2px solid rgba(167, 139, 250, 0.8) !important;
+        color: white !important;
+        font-weight: 700;
+        padding: 0.7rem 1.5rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.4);
+    }
+
+    .modal-content .btn-primary:hover:not(:disabled) {
+        background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%) !important;
+        border-color: #a78bfa !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+    }
+
+    .modal-content .btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+    }
+
+    .modal-content .btn-secondary {
+        background: linear-gradient(135deg, rgba(75, 85, 99, 0.85) 0%, rgba(55, 65, 81, 0.9) 100%) !important;
+        border: 2px solid rgba(107, 114, 128, 0.6) !important;
+        color: white !important;
+        font-weight: 600;
+        padding: 0.7rem 1.5rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+
+    .modal-content .btn-secondary:hover {
+        background: linear-gradient(135deg, rgba(55, 65, 81, 0.95) 0%, rgba(31, 41, 55, 1) 100%) !important;
+        border-color: rgba(107, 114, 128, 0.8) !important;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    .btn-close-white {
+        filter: brightness(1.5);
+        opacity: 0.8;
+        transition: all 0.3s ease;
+    }
+
+    .btn-close-white:hover {
+        opacity: 1;
+        transform: rotate(90deg);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- SPA Mount Point -->
+<div id="spa-app">
+    <router-view v-slot="{ Component, route }">
+        <transition name="slide-fade" mode="out-in">
+            <component :is="Component" :key="route.path" />
+        </transition>
+    </router-view>
+    <BackToTop />
+</div>
+
+<!-- ========================== -->
+<!-- === Component Templates === -->
+<!-- ========================== -->
+
+<!-- Landing Template -->
+<script type="text/x-template" id="landing-template">
+{% raw %}
+<div>
+    <!-- Героїчна секція -->
+    <div class="hero-section">
+        <h1>🎬 Вітаємо в CinemaBook</h1>
+        <p>Ваш ідеальний спосіб бронювати квитки в кіно онлайн</p>
+        <div class="cta-buttons">
+            <router-link to="/films" class="btn btn-primary btn-lg">
+                <i class="fas fa-ticket-alt"></i> Переглянути афішу
+            </router-link>
+            <button @click="scrollToFeatures" class="btn btn-secondary btn-lg">
+                <i class="fas fa-info-circle"></i> Дізнатися більше
+            </button>
+        </div>
+    </div>
+
+    <!-- Популярні фільми -->
+    <div class="container mb-5 mt-4">
+        <h2 class="section-title">🔥 Зараз у прокаті</h2>
+        
+        <!-- Skeleton Loader -->
+        <div v-if="loading" class="row">
+            <div v-for="n in 4" :key="'skeleton-' + n" class="col-md-3 col-sm-6 mb-4">
+                <div class="card h-100">
+                    <div class="skeleton" style="height: 350px; border-radius: 15px 15px 0 0;"></div>
+                    <div class="card-body text-center">
+                        <div class="skeleton skeleton-title" style="margin: 0 auto;"></div>
+                        <div class="skeleton skeleton-text" style="width: 50%; margin: 12px auto 8px;"></div>
+                        <div class="skeleton skeleton-text" style="width: 40%; margin: 0 auto;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-else-if="popularFilms.length" class="row">
+            <div v-for="film in popularFilms" :key="film.id" class="col-md-3 col-sm-6 mb-4">
+                <div class="film-card-wrapper">
+                    <div class="card h-100" @click="goToFilm(film.id)" style="cursor: pointer;">
+                        <img v-if="film.image" :src="film.image" class="card-img-small" :alt="film.title">
+                        <div v-else class="placeholder-img" style="height: 350px;">
+                            <i class="fas fa-film fa-3x"></i>
+                        </div>
+                        <div class="card-body text-center">
+                            <h5 class="card-title" :title="film.title">{{ film.title }}</h5>
+                            
+                            <!-- Додаткова інформація -->
+                            <div class="badge-container mb-2">
+                                <span v-if="film.genre" class="badge bg-primary">{{ film.genre }}</span>
+                                <span v-if="film.release_year" class="badge bg-secondary">{{ film.release_year }}</span>
+                                <span v-if="film.duration" class="badge bg-secondary">
+                                    <i class="fas fa-clock"></i> {{ film.duration }} хв
+                                </span>
+                            </div>
+                            
+                            <!-- Рейтинг -->
+                            <div class="rating-container mb-3">
+                                <span v-if="film.review_count > 0" class="stars">
+                                    {{ starsDisplay(film.average_rating) }}
+                                </span>
+                                <br v-if="film.review_count > 0">
+                                <small v-if="film.review_count > 0" class="text-muted">
+                                    {{ film.average_rating.toFixed(1) }}/5
+                                </small>
+                                <small v-else class="text-muted">Без рейтингу</small>
+                            </div>
+                            
+                            <!-- Кнопки -->
+                            <div class="button-container d-flex gap-2 justify-content-center">
+                                <button v-if="$root.$data.authState && $root.$data.authState.authenticated"
+                                        @click.stop="toggleFavorite(film)"
+                                        class="btn btn-sm"
+                                        :class="film.is_favorited ? 'btn-danger' : 'btn-outline-primary'"
+                                        :title="film.is_favorited ? 'Видалити з обраних' : 'Додати до обраних'">
+                                    <i class="fas fa-heart"></i>
+                                </button>
+                                <button @click.stop="goToFilm(film.id)" class="btn btn-sm btn-primary">
+                                    <i class="fas fa-info-circle"></i> Детальніше
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-else class="alert alert-info text-center">
+            <i class="fas fa-film" style="font-size: 3rem; margin-bottom: 1rem; display: block; opacity: 0.5;"></i>
+            <p class="mb-0">Фільмів поки немає. Адміністратор скоро додасть нові фільми!</p>
+        </div>
+    </div>
+
+    <!-- Переваги -->
+    <div class="features-section" id="features">
+        <div class="container">
+            <h2 class="section-title">✨ Чому обирають CinemaBook?</h2>
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="feature-box">
+                        <div class="feature-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h3 class="feature-title">Швидке бронювання</h3>
+                        <p class="text-muted">Забронюйте квитки за лічені секунди прямо з дому</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-box">
+                        <div class="feature-icon">
+                            <i class="fas fa-couch"></i>
+                        </div>
+                        <h3 class="feature-title">Вибір місць</h3>
+                        <p class="text-muted">Оберіть свої ідеальні місця на інтерактивній схемі залу</p>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="feature-box">
+                        <div class="feature-icon">
+                            <i class="fas fa-heart"></i>
+                        </div>
+                        <h3 class="feature-title">Обрані фільми</h3>
+                        <p class="text-muted">Додавайте улюблені фільми в обрані та отримуйте повідомлення про нові сеанси</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+<!-- Films Template -->
+<script type="text/x-template" id="films-template">
+{% raw %}
+<div class="container">
+    <Breadcrumbs />
+    <div class="page-header">
+        <h1><i class="fas fa-film"></i> Афіша фільмів</h1>
+        <p class="text-muted">Оберіть фільм та забронюйте квитки</p>
+    </div>
+
+    <div class="search-wrapper">
+        <div class="input-group">
+            <span class="input-group-text" style="background: transparent; border: none; color: #a78bfa; font-size: 1.2rem;">
+                <i class="fas fa-search"></i>
+            </span>
+            <input type="text" v-model="searchQuery" class="form-control"
+                   placeholder="Пошук фільмів за назвою або описом...">
+            <button v-if="searchQuery" class="btn btn-outline-light" @click="clearFilters" title="Очистити фільтри">
+                <i class="fas fa-times"></i> Очистити
+            </button>
+        </div>
+    </div>
+
+    <div class="results-info" v-if="!loading">
+        {{ resultsText }}
+        <span v-if="searchQuery"> за запитом «{{ searchQuery }}»</span>
+    </div>
+
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="row">
+        <div v-for="n in 6" :key="'skeleton-' + n" class="col-lg-4 col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="skeleton" style="height: 350px; border-radius: 15px 15px 0 0;"></div>
+                <div class="card-body">
+                    <div class="skeleton skeleton-title"></div>
+                    <div class="skeleton skeleton-text" style="width: 60%;"></div>
+                    <div class="skeleton skeleton-text" style="width: 40%; margin-top: 12px;"></div>
+                    <div class="skeleton skeleton-text" style="width: 80%; margin-top: 12px;"></div>
+                    <div class="skeleton skeleton-text" style="width: 90%;"></div>
+                    <div class="skeleton" style="height: 38px; margin-top: 16px; border-radius: 8px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-else-if="films.length" class="row">
+        <div v-for="film in films" :key="film.id" class="col-lg-4 col-md-6 mb-4">
+            <div class="film-card-wrapper">
+                <div class="card h-100" @click="goToFilm(film.id)">
+                    <img v-if="film.image" :src="film.image" class="card-img-top" :alt="film.title">
+                    <div v-else class="placeholder-img card-img-top">
+                        <div class="text-center">
+                            <i class="fas fa-film fa-3x mb-2" style="opacity: 0.3;"></i>
+                            <p class="mb-0">Немає зображення</p>
+                        </div>
+                    </div>
+                    <div class="card-body d-flex flex-column">
+                        <h5 class="card-title" :title="film.title">{{ film.title }}</h5>
+                        <div class="badge-container mb-2">
+                            <span v-if="film.genre" class="badge bg-primary"><i class="fas fa-tag"></i> {{ film.genre }}</span>
+                            <span v-if="film.release_year" class="badge bg-secondary"><i class="fas fa-calendar"></i> {{ film.release_year }}</span>
+                            <span v-if="film.duration" class="badge bg-secondary"><i class="fas fa-clock"></i> {{ film.duration }} хв</span>
+                            <span v-if="film.age_rating" class="badge bg-warning text-dark"><i class="fas fa-user-shield"></i> {{ film.age_rating }}</span>
+                        </div>
+                        <div class="mb-2" style="min-height: 48px;">
+                            <template v-if="film.review_count > 0">
+                                <span class="stars">{{ starsDisplay(film.average_rating) }}</span>
+                                <br>
+                                <small class="text-muted">{{ film.average_rating.toFixed(1) }}/5 ({{ film.review_count }})</small>
+                            </template>
+                            <small v-else class="text-muted">Немає відгуків</small>
+                        </div>
+                        <p class="card-text flex-grow-1 text-muted">{{ truncate(film.description, 120) }}</p>
+                        <div class="d-flex gap-2 mt-auto">
+                            <button class="btn-fav" @click="toggleFavorite(film, $event)"
+                                    :title="film.is_favorite ? 'Видалити з обраних' : 'Додати до обраних'">
+                                <i :class="film.is_favorite ? 'fas fa-heart text-danger' : 'far fa-heart text-muted'"></i>
+                            </button>
+                            <router-link :to="'/film/' + film.id" class="btn btn-primary flex-grow-1" @click.stop>
+                                <i class="fas fa-ticket-alt"></i> Сеанси та квитки
+                            </router-link>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-else class="alert alert-info text-center">
+        <i class="fas fa-search fa-3x mb-3" style="display: block; opacity: 0.5;"></i>
+        <p v-if="searchQuery" class="mb-0">За запитом «<strong>{{ searchQuery }}</strong>» нічого не знайдено.</p>
+        <p v-else class="mb-0">Фільмів ще немає.</p>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Film Detail Template -->
+<script type="text/x-template" id="film-detail-template">
+{% raw %}
+<div>
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="container">
+        <Breadcrumbs />
+        <div class="row mt-4">
+            <!-- Film Image Skeleton -->
+            <div class="col-md-4 mb-4">
+                <div class="skeleton" style="height: 500px; border-radius: 15px;"></div>
+            </div>
+            <!-- Film Info Skeleton -->
+            <div class="col-md-8">
+                <div class="skeleton skeleton-title" style="width: 60%; height: 36px;"></div>
+                <div class="skeleton skeleton-text" style="width: 40%; margin-top: 16px;"></div>
+                <div class="skeleton skeleton-text" style="width: 50%; margin-top: 8px;"></div>
+                <div class="skeleton" style="height: 2px; width: 100%; margin: 24px 0;"></div>
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text"></div>
+                <div class="skeleton skeleton-text" style="width: 70%;"></div>
+                <div class="skeleton" style="height: 120px; margin-top: 24px; border-radius: 12px;"></div>
+            </div>
+        </div>
+        <!-- Sessions Skeleton -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="skeleton skeleton-title" style="width: 40%;"></div>
+                <div class="row mt-3">
+                    <div v-for="n in 3" :key="'session-skeleton-' + n" class="col-md-4 mb-3">
+                        <div class="skeleton" style="height: 150px; border-radius: 12px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div v-else-if="error" class="container">
+        <div class="alert alert-danger text-center"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>
+    </div>
+
+    <div v-else class="container">
+        <Breadcrumbs />
+        <div class="film-header text-center mb-4">
+            <h1><i class="fas fa-film"></i> {{ film.title }}</h1>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-4 col-md-5 mb-4">
+                <div class="poster-section">
+                    <img v-if="film.image" :src="film.image" class="film-detail-poster"
+                         style="box-shadow: 0 20px 50px rgba(139,92,246,0.3);" :alt="film.title">
+
+                    <div class="rating-display mt-3">
+                        <template v-if="film.review_count > 0">
+                            <div class="rating-stars">{{ ratingStars }}</div>
+                            <div class="text-muted">{{ film.average_rating }}/5 ({{ film.review_count }} відгуків)</div>
+                        </template>
+                        <p v-else class="text-muted mb-0">Ще немає відгуків</p>
+                    </div>
+
+                    <button v-if="isAuthenticated" class="btn-fav-lg mt-3"
+                            :class="film.is_favorite ? 'btn btn-primary' : 'btn btn-outline-light'"
+                            @click="toggleFavorite">
+                        <i :class="film.is_favorite ? 'fas fa-heart' : 'far fa-heart'"></i>
+                        {{ film.is_favorite ? 'В обраних' : 'Додати до обраних' }}
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-lg-8 col-md-7">
+                <div class="info-card mb-4">
+                    <div class="info-row">
+                        <div v-if="film.genre" class="info-item">
+                            <i class="fas fa-theater-masks"></i> <strong>Жанр:</strong> <span class="badge-genre">{{ film.genre }}</span>
+                        </div>
+                        <div v-if="film.release_year" class="info-item">
+                            <i class="fas fa-calendar"></i> <strong>Рік випуску:</strong> {{ film.release_year }}
+                        </div>
+                        <div v-if="film.director" class="info-item">
+                            <i class="fas fa-video"></i> <strong>Режисер:</strong> {{ film.director }}
+                        </div>
+                        <div v-if="film.duration" class="info-item">
+                            <i class="fas fa-clock"></i> <strong>Тривалість:</strong> {{ film.duration }} хв
+                        </div>
+                        <div v-if="film.age_rating" class="info-item">
+                            <i class="fas fa-user-shield"></i> <strong>Віковий рейтинг:</strong> <span class="badge-age">{{ film.age_rating }}</span>
+                        </div>
+                        <div v-if="film.actors" class="info-item" style="flex: 0 0 100%;">
+                            <i class="fas fa-users"></i> <strong>В ролях:</strong> {{ film.actors }}
+                        </div>
+                    </div>
+                </div>
+
+                <h4 class="section-title"><i class="fas fa-info-circle"></i> Про фільм</h4>
+                <p style="line-height: 1.8; text-align: justify;">{{ film.description }}</p>
+
+                <template v-if="film.trailer">
+                    <h4 class="section-title"><i class="fas fa-play-circle"></i> Трейлер</h4>
+                    <div class="ratio ratio-16x9 mb-4 trailer-wrapper">
+                        <iframe :src="getEmbedUrl(film.trailer)" :title="'Трейлер ' + film.title" allowfullscreen></iframe>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Сеанси -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="section-title"><i class="fas fa-ticket-alt"></i> Доступні сеанси</h3>
+                <template v-if="sessions.length">
+                    <div class="mb-5">
+                        <div v-for="session in sessions" :key="session.id" class="session-card">
+                            <div>
+                                <div class="session-time"><i class="fas fa-clock"></i> {{ session.start_time }}</div>
+                                <div class="session-price"><i class="fas fa-money-bill-wave"></i> {{ session.price }} грн</div>
+                                <small class="text-muted">Вільних місць: {{ session.available_seats }}</small>
+                            </div>
+                            <router-link :to="'/seats/' + session.id" class="btn btn-primary">
+                                <i class="fas fa-couch"></i> Обрати місця
+                            </router-link>
+                        </div>
+                    </div>
+                </template>
+                <p v-else class="text-muted">Наразі немає сеансів для цього фільму.</p>
+            </div>
+        </div>
+
+        <!-- Схожі фільми -->
+        <div v-if="similarFilms.length" class="row">
+            <div class="col-12">
+                <h3 class="section-title"><i class="fas fa-film"></i> Схожі фільми</h3>
+                <div class="row">
+                    <div v-for="similar in similarFilms" :key="similar.id" class="col-md-3 col-sm-6 mb-4">
+                        <div class="film-card" @click="goToSimilar(similar.id)">
+                            <img v-if="similar.image" :src="similar.image" class="card-img-top" :alt="similar.title">
+                            <div v-else class="placeholder-img"><i class="fas fa-film fa-3x"></i></div>
+                            <div class="film-card-body">
+                                <h6 class="film-card-title">{{ similar.title }}</h6>
+                                <div class="mb-2">
+                                    <span v-if="similar.genre" class="badge bg-primary mb-1">{{ similar.genre }}</span>
+                                    <span v-if="similar.release_year" class="badge bg-secondary mb-1">{{ similar.release_year }}</span>
+                                </div>
+                                <div class="mb-2">
+                                    <template v-if="similar.review_count > 0">
+                                        <span style="color: #fbbf24;">{{ starsDisplay(similar.average_rating) }}</span>
+                                        <small class="text-muted">{{ similar.average_rating }}/5</small>
+                                    </template>
+                                    <small v-else class="text-muted">Немає відгуків</small>
+                                </div>
+                                <router-link :to="'/film/' + similar.id" class="btn btn-primary w-100" @click.stop>Детальніше</router-link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Відгуки -->
+        <div class="row">
+            <div class="col-12">
+                <h3 class="section-title"><i class="fas fa-comments"></i> Відгуки глядачів</h3>
+
+                <div v-if="canReview" class="review-form mb-4">
+                    <h5 style="color: #a78bfa; font-weight: 700;"><i class="fas fa-pen"></i> Залишити відгук</h5>
+                    <form @submit.prevent="submitReview">
+                        <div class="mb-3">
+                            <label class="form-label">Оцінка</label>
+                            <select v-model="reviewForm.rating" class="form-select">
+                                <option v-for="n in 5" :key="n" :value="n">{{ '⭐'.repeat(n) }} {{ n }}/5</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Коментар</label>
+                            <textarea v-model="reviewForm.comment" class="form-control" rows="4"
+                                      placeholder="Поділіться враженнями про фільм..."></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary" :disabled="submittingReview">
+                            <span v-if="submittingReview"><span class="spinner-border spinner-border-sm me-1"></span> Відправка...</span>
+                            <span v-else><i class="fas fa-paper-plane"></i> Опублікувати відгук</span>
+                        </button>
+                    </form>
+                </div>
+
+                <div v-else-if="isAuthenticated && userReview" class="info-card mb-4">
+                    <i class="fas fa-check-circle" style="color: #10b981;"></i>
+                    Ви вже залишили відгук. Ваша оцінка:
+                    <strong style="color: #fbbf24;">{{ starsDisplay(userReview.rating) }} {{ userReview.rating }}/5</strong>
+                </div>
+
+                <div v-else-if="!isAuthenticated" class="info-card mb-4">
+                    <i class="fas fa-sign-in-alt"></i>
+                    <a href="/login" style="color: #a78bfa; text-decoration: underline;">Увійдіть</a>, щоб залишити відгук.
+                </div>
+
+                <div v-if="reviews.length" class="mt-4">
+                    <div v-for="review in reviews" :key="review.id" class="review-card">
+                        <div class="review-header">
+                            <div>
+                                <h6 class="mb-1">
+                                    <span class="reviewer-name">{{ review.user_name }}</span>
+                                    <span style="color: #fbbf24;">{{ starsDisplay(review.rating) }}</span>
+                                    <span class="text-muted">({{ review.rating }}/5)</span>
+                                </h6>
+                                <small class="text-muted"><i class="fas fa-calendar-alt"></i> {{ formatDate(review.created_at) }}</small>
+                            </div>
+                            <button v-if="canDeleteReview(review)" class="btn btn-sm btn-outline-danger"
+                                    @click="deleteReview(review.id)">
+                                <i class="fas fa-trash"></i> Видалити
+                            </button>
+                        </div>
+                        <p v-if="review.comment" class="mb-0 mt-2">{{ review.comment }}</p>
+                    </div>
+                </div>
+                <p v-else-if="!canReview" class="text-muted">Поки що відгуків немає.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Profile Template -->
+<script type="text/x-template" id="profile-template">
+{% raw %}
+<div>
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="container">
+        <Breadcrumbs />
+        <div class="profile-header">
+            <div class="skeleton skeleton-title" style="width: 300px;"></div>
+        </div>
+
+        <!-- Profile Card Skeleton -->
+        <div class="profile-card">
+            <div class="skeleton" style="width: 100px; height: 100px; border-radius: 50%; margin: 0 auto 20px;"></div>
+            <div class="skeleton skeleton-title" style="width: 200px; margin: 0 auto 12px;"></div>
+            <div class="skeleton skeleton-text" style="width: 250px; margin: 0 auto 24px;"></div>
+            <div class="stats-row">
+                <div v-for="n in 3" :key="'stat-skeleton-' + n" class="stat-item">
+                    <div class="skeleton" style="width: 60px; height: 32px; margin: 0 auto 8px;"></div>
+                    <div class="skeleton skeleton-text" style="width: 80px; margin: 0 auto;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bookings Skeleton -->
+        <div class="skeleton skeleton-title" style="width: 250px; margin-bottom: 20px;"></div>
+        <div class="mb-4">
+            <div class="skeleton" style="width: 100%; height: 42px; border-radius: 8px;"></div>
+        </div>
+        <div v-for="n in 3" :key="'booking-skeleton-' + n" class="mb-3">
+            <div class="skeleton" style="height: 150px; border-radius: 12px;"></div>
+        </div>
+    </div>
+
+    <div v-else class="container">
+        <Breadcrumbs />
+        <div class="profile-header">
+            <h1><i class="fas fa-user-circle"></i> Мій профіль</h1>
+        </div>
+
+        <div class="profile-card">
+            <div class="profile-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-name">{{ user.name }}</div>
+            <div class="text-muted"><i class="fas fa-envelope"></i> {{ user.email }}</div>
+            <div class="stats-row">
+                <div class="stat-item">
+                    <div class="stat-value">{{ bookings.length }}</div>
+                    <div class="stat-label">Бронювань</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ activeBookings.length }}</div>
+                    <div class="stat-label">Активних</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ totalSpent }} грн</div>
+                    <div class="stat-label">Витрачено</div>
+                </div>
+            </div>
+        </div>
+
+        <h3 class="section-title"><i class="fas fa-ticket-alt"></i> Мої бронювання</h3>
+
+        <div class="filter-btns mb-4">
+            <button class="btn" :class="filter === 'all' ? 'btn-primary' : 'btn-outline-light'" @click="setFilter('all')">
+                <i class="fas fa-list"></i> Усі ({{ bookings.length }})
+            </button>
+            <button class="btn" :class="filter === 'active' ? 'btn-primary' : 'btn-outline-light'" @click="setFilter('active')">
+                <i class="fas fa-check-circle"></i> Активні ({{ activeBookings.length }})
+            </button>
+            <button class="btn" :class="filter === 'cancelled' ? 'btn-primary' : 'btn-outline-light'" @click="setFilter('cancelled')">
+                <i class="fas fa-times-circle"></i> Скасовані ({{ cancelledBookings.length }})
+            </button>
+        </div>
+
+        <div v-if="filteredBookings.length">
+            <div v-for="booking in filteredBookings" :key="booking.id"
+                 class="booking-card" :class="{ cancelled: booking.is_cancelled }">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1">
+                            <i class="fas fa-film"></i> {{ booking.film_title }}
+                            <span v-if="booking.is_cancelled" class="badge badge-cancelled ms-2">Скасовано</span>
+                            <span v-else class="badge badge-active ms-2">Активне</span>
+                        </h5>
+                        <div class="text-muted mb-1">
+                            <i class="fas fa-clock"></i> {{ booking.session_time }}
+                        </div>
+                        <div class="text-muted mb-1">
+                            <i class="fas fa-couch"></i> Ряд {{ booking.seat_row }}, Місце {{ booking.seat_number }}
+                        </div>
+                        <div class="text-muted">
+                            <i class="fas fa-money-bill-wave"></i> {{ booking.price }} грн
+                        </div>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <router-link :to="'/film/' + booking.film_id" class="btn btn-outline-primary me-2">
+                            <i class="fas fa-eye"></i> Фільм
+                        </router-link>
+                        <button v-if="!booking.is_cancelled" class="btn btn-outline-danger"
+                                @click="cancelBooking(booking.id)">
+                            <i class="fas fa-times"></i> Скасувати
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div v-else class="text-center text-muted py-5">
+            <i class="fas fa-inbox fa-3x mb-3"></i>
+            <p>Бронювань не знайдено</p>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Favorites Template -->
+<script type="text/x-template" id="favorites-template">
+{% raw %}
+<div>
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="container">
+        <Breadcrumbs />
+        <div class="fav-header">
+            <div class="skeleton skeleton-title" style="width: 300px;"></div>
+        </div>
+        <div class="fav-stats mb-4">
+            <div class="skeleton" style="width: 200px; height: 32px; border-radius: 20px;"></div>
+        </div>
+        <div class="row">
+            <div v-for="n in 8" :key="'fav-skeleton-' + n" class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="skeleton" style="height: 400px; border-radius: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div v-else class="container">
+        <Breadcrumbs />
+        <div class="fav-header">
+            <h1><i class="fas fa-heart"></i> Обрані фільми</h1>
+        </div>
+
+        <div class="fav-stats">
+            <span class="badge"><i class="fas fa-heart"></i> {{ favorites.length }} фільмів в обраних</span>
+        </div>
+
+        <div v-if="favorites.length" class="row">
+            <div v-for="fav in favorites" :key="fav.id" class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                <div class="fav-film-card">
+                    <img v-if="fav.image" :src="fav.image" class="card-img-top" :alt="fav.title">
+                    <div v-else class="placeholder-img"><i class="fas fa-film fa-3x"></i></div>
+                    <div class="fav-card-body">
+                        <h6 class="fav-card-title">{{ fav.title }}</h6>
+                        <div v-if="fav.genre" class="mb-2">
+                            <span class="badge bg-primary">{{ fav.genre }}</span>
+                        </div>
+                        <div class="added-date mb-2">
+                            <i class="fas fa-calendar-plus"></i> Додано: {{ formatDate(fav.added_at) }}
+                        </div>
+                        <div class="mt-auto d-grid gap-2">
+                            <router-link :to="'/film/' + fav.id" class="btn btn-primary btn-sm">
+                                <i class="fas fa-eye"></i> Детальніше
+                            </router-link>
+                            <button class="btn btn-outline-danger btn-sm" @click="removeFavorite(fav.id)">
+                                <i class="fas fa-heart-broken"></i> Видалити
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div v-else class="empty-state">
+            <i class="far fa-heart"></i>
+            <h4>Список обраних порожній</h4>
+            <p>Додавайте фільми в обрані, щоб не втратити їх</p>
+            <router-link to="/films" class="btn btn-primary"><i class="fas fa-film"></i> Переглянути фільми</router-link>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Seats Template -->
+<script type="text/x-template" id="seats-template">
+{% raw %}
+<div>
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="container">
+        <Breadcrumbs />
+        <div class="seats-page-header">
+            <div class="skeleton skeleton-title" style="width: 400px; margin: 0 auto;"></div>
+            <div class="skeleton skeleton-text" style="width: 250px; margin: 12px auto;"></div>
+        </div>
+
+        <div class="session-info">
+            <div class="skeleton" style="width: 48px; height: 48px; border-radius: 50%; margin: 0 auto 12px;"></div>
+            <div class="skeleton skeleton-text" style="width: 200px; margin: 0 auto;"></div>
+        </div>
+
+        <!-- Seats grid skeleton -->
+        <div class="seats-grid" style="max-width: 800px; margin: 40px auto;">
+            <div v-for="row in 10" :key="'row-skeleton-' + row" style="display: flex; justify-content: center; margin-bottom: 12px;">
+                <div v-for="seat in 12" :key="'seat-skeleton-' + seat" class="skeleton" style="width: 50px; height: 50px; margin: 0 4px; border-radius: 8px;"></div>
+            </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 24px;">
+            <div class="skeleton" style="width: 200px; height: 50px; margin: 0 auto; border-radius: 8px;"></div>
+        </div>
+    </div>
+
+    <div v-else-if="error" class="alert alert-danger text-center">
+        <i class="fas fa-exclamation-triangle"></i> {{ error }}
+    </div>
+
+    <div v-else class="container">
+        <Breadcrumbs />
+        <div class="seats-page-header">
+            <h1>{{ session.film_title }}</h1>
+            <p class="text-muted">
+                <i class="fas fa-calendar-alt"></i>
+                {{ formatDateTime(session.start_time) }}
+            </p>
+        </div>
+
+        <div class="session-info">
+            <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
+            <p class="mb-0">Ціна квитка: <span class="price-badge">{{ session.price }} грн</span></p>
+
+            <div v-if="userBookings.count > 0">
+                <hr style="margin: 1rem 0; border-color: rgba(139, 92, 246, 0.3);">
+                <p class="mb-0" style="font-size: 0.95rem;">
+                    <i class="fas fa-info-circle"></i>
+                    Ви вже забронювали <strong>{{ userBookings.count }}</strong>
+                    {{ userBookings.count === 1 ? 'місце' : userBookings.count < 5 ? 'місця' : 'місць' }} на цей сеанс.
+                    <br>
+                    <span v-if="userBookings.remaining_slots > 0" style="color: #28a745;">
+                        Можете обрати ще <strong>{{ userBookings.remaining_slots }}</strong>
+                        {{ userBookings.remaining_slots === 1 ? 'місце' : userBookings.remaining_slots < 5 ? 'місця' : 'місць' }}.
+                    </span>
+                    <span v-else style="color: #dc3545;">
+                        Досягнуто максимум (5 місць на сеанс).
+                    </span>
+                </p>
+            </div>
+            <div v-else>
+                <hr style="margin: 1rem 0; border-color: rgba(139, 92, 246, 0.3);">
+                <p class="mb-0" style="font-size: 0.95rem;">
+                    <i class="fas fa-info-circle"></i> Максимум <strong>5 місць</strong> на один сеанс
+                </p>
+            </div>
+        </div>
+
+        <div class="screen-display">
+            <i class="fas fa-tv"></i> ЕКРАН
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-seat spa-seat free"></span>
+                <span>Вільно</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-seat spa-seat selected"></span>
+                <span>Вибрано</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-seat spa-seat booked"></span>
+                <span>Зайнято</span>
+            </div>
+        </div>
+
+        <div class="seats-container">
+            <div class="spa-seats-grid">
+                <div v-for="(rowSeats, row) in seatsByRow" :key="row" class="seat-row">
+                    <span class="row-label">{{ row }}</span>
+                    <button
+                        v-for="seat in rowSeats"
+                        :key="seat.id"
+                        type="button"
+                        :class="['spa-seat', getSeatClass(seat)]"
+                        :disabled="seat.status === 'booked'"
+                        @click="toggleSeat(seat)"
+                    >
+                        {{ seat.number }}
+                    </button>
+                </div>
+            </div>
+
+            <div class="booking-summary">
+                <h3>Підсумок бронювання</h3>
+                <div class="selected-count">
+                    {{ selectedSeats.length }} {{ selectedSeats.length === 1 ? 'місце' : selectedSeats.length < 5 ? 'місця' : 'місць' }}
+                </div>
+                <p class="mb-0" style="font-size: 1.5rem; font-weight: 600; margin-top: 1rem;">
+                    Всього: <span style="color: #28a745;">{{ totalPrice }} грн</span>
+                </p>
+
+                <button
+                    class="btn-book"
+                    :disabled="!hasSelection || booking"
+                    @click="bookSeats"
+                >
+                    <span v-if="booking">
+                        <span class="spinner-border spinner-border-sm me-2"></span>
+                        Бронювання...
+                    </span>
+                    <span v-else>
+                        <i class="fas fa-check-circle me-2"></i>
+                        Забронювати
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Login Template -->
+<script type="text/x-template" id="login-template">
+{% raw %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h2><i class="fas fa-sign-in-alt"></i> Вхід</h2>
+            <p>Увійдіть до свого облікового запису</p>
+        </div>
+        <div class="card">
+            <div class="card-body p-4">
+                <div v-if="generalError" class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> {{ generalError }}
+                </div>
+                <form @submit.prevent="submitLogin">
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-icon"><i class="fas fa-envelope"></i></span>
+                            <input type="email" v-model="email" class="form-control"
+                                   :class="{ 'is-invalid': errors.email }" placeholder="your@email.com" autofocus>
+                        </div>
+                        <div v-if="errors.email" class="field-error">{{ errors.email }}</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Пароль</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-icon"><i class="fas fa-lock"></i></span>
+                            <input type="password" v-model="password" class="form-control"
+                                   :class="{ 'is-invalid': errors.password }" placeholder="Введіть пароль">
+                        </div>
+                        <div v-if="errors.password" class="field-error">{{ errors.password }}</div>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-auth" :disabled="submitting">
+                        <span v-if="submitting"><span class="spinner-border spinner-border-sm me-1"></span> Вхід...</span>
+                        <span v-else><i class="fas fa-sign-in-alt"></i> Увійти</span>
+                    </button>
+                </form>
+                <div class="text-center mt-4">
+                    <p class="text-muted mb-0">
+                        Немає акаунту? <router-link to="/register" class="auth-link">Зареєструйтесь</router-link>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Register Template -->
+<script type="text/x-template" id="register-template">
+{% raw %}
+<div class="auth-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <h2><i class="fas fa-user-plus"></i> Реєстрація</h2>
+            <p>Створіть обліковий запис CinemaBook</p>
+        </div>
+        <div class="card">
+            <div class="card-body p-4">
+                <div v-if="generalError" class="alert alert-danger">
+                    <i class="fas fa-exclamation-circle"></i> {{ generalError }}
+                </div>
+                <form @submit.prevent="submitRegister">
+                    <div class="mb-3">
+                        <label class="form-label">Ім'я</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-icon"><i class="fas fa-user"></i></span>
+                            <input type="text" v-model="name" class="form-control"
+                                   :class="{ 'is-invalid': errors.name }" placeholder="Ваше ім'я" autofocus>
+                        </div>
+                        <div v-if="errors.name" class="field-error">{{ errors.name }}</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-icon"><i class="fas fa-envelope"></i></span>
+                            <input type="email" v-model="email" class="form-control"
+                                   :class="{ 'is-invalid': errors.email }" placeholder="your@email.com">
+                        </div>
+                        <div v-if="errors.email" class="field-error">{{ errors.email }}</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label">Пароль</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-icon"><i class="fas fa-lock"></i></span>
+                            <input type="password" v-model="password" class="form-control"
+                                   :class="{ 'is-invalid': errors.password }" placeholder="Мінімум 6 символів">
+                        </div>
+                        <div v-if="errors.password" class="field-error">{{ errors.password }}</div>
+                        <small class="form-text text-muted">Мінімум 6 символів</small>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-auth" :disabled="submitting">
+                        <span v-if="submitting"><span class="spinner-border spinner-border-sm me-1"></span> Реєстрація...</span>
+                        <span v-else><i class="fas fa-user-plus"></i> Зареєструватися</span>
+                    </button>
+                </form>
+                <div class="text-center mt-4">
+                    <p class="text-muted mb-0">
+                        Вже є акаунт? <router-link to="/login" class="auth-link">Увійдіть</router-link>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Admin Dashboard Template -->
+<script type="text/x-template" id="admin-dashboard-template">
+{% raw %}
+<div>
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="container">
+        <Breadcrumbs />
+        <div class="page-header">
+            <div class="skeleton skeleton-title" style="width: 300px;"></div>
+        </div>
+
+        <div class="admin-nav mb-4">
+            <div v-for="n in 4" :key="'nav-skeleton-' + n" class="skeleton d-inline-block" style="width: 150px; height: 42px; margin-right: 12px; border-radius: 8px;"></div>
+        </div>
+
+        <!-- Stats Cards Skeleton -->
+        <div class="row">
+            <div v-for="n in 4" :key="'stat-skeleton-' + n" class="col-md-3 col-6 mb-3">
+                <div class="skeleton" style="height: 140px; border-radius: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- Popular Films Skeleton -->
+        <div class="mt-4">
+            <div class="skeleton skeleton-title" style="width: 250px; margin-bottom: 20px;"></div>
+            <div v-for="n in 5" :key="'film-skeleton-' + n" class="mb-2">
+                <div class="skeleton" style="height: 60px; border-radius: 12px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div v-else-if="error" class="container">
+        <div class="alert alert-danger text-center"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>
+    </div>
+    <div v-else class="container">
+        <Breadcrumbs />
+        <div class="page-header">
+            <h1><i class="fas fa-chart-line"></i> Адмін-панель</h1>
+        </div>
+
+        <div class="admin-nav">
+            <router-link to="/admin" class="btn btn-primary"><i class="fas fa-chart-bar"></i> Статистика</router-link>
+            <router-link to="/admin/films" class="btn btn-outline-light"><i class="fas fa-film"></i> Фільми</router-link>
+            <router-link to="/admin/sessions" class="btn btn-outline-light"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
+            <router-link to="/admin/calendar" class="btn btn-outline-light"><i class="fas fa-calendar-week"></i> Календар</router-link>
+        </div>
+
+        <!-- Метрики -->
+        <div class="row">
+            <div class="col-md-3 col-6">
+                <div class="stats-card">
+                    <div class="stats-icon" style="color: #8b5cf6;"><i class="fas fa-users"></i></div>
+                    <div class="stats-label">Користувачі</div>
+                    <div class="stats-value">{{ stats.total_users }}</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stats-card">
+                    <div class="stats-icon" style="color: #10b981;"><i class="fas fa-ticket-alt"></i></div>
+                    <div class="stats-label">Бронювання</div>
+                    <div class="stats-value">{{ stats.total_bookings }}</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stats-card">
+                    <div class="stats-icon" style="color: #ec4899;"><i class="fas fa-film"></i></div>
+                    <div class="stats-label">Фільми</div>
+                    <div class="stats-value">{{ stats.total_films }}</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6">
+                <div class="stats-card">
+                    <div class="stats-icon" style="color: #fbbf24;"><i class="fas fa-wallet"></i></div>
+                    <div class="stats-label">Прибуток</div>
+                    <div class="stats-value">{{ Math.round(stats.total_revenue) }}</div>
+                    <small class="text-muted">грн</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Топ фільми -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="data-table">
+                    <div class="data-table-header">
+                        <h5><i class="fas fa-chart-bar"></i> Топ-5 популярних фільмів</h5>
+                    </div>
+                    <table class="table admin-table" v-if="stats.popular_films.labels.length">
+                        <thead><tr><th>Фільм</th><th>Бронювань</th></tr></thead>
+                        <tbody>
+                            <tr v-for="(label, i) in stats.popular_films.labels" :key="i">
+                                <td>{{ label }}</td>
+                                <td><span class="badge bg-primary">{{ stats.popular_films.data[i] }}</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-else class="text-muted text-center p-3">Немає даних</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="data-table">
+                    <div class="data-table-header">
+                        <h5><i class="fas fa-chart-pie"></i> Прибуток по фільмах</h5>
+                    </div>
+                    <table class="table admin-table" v-if="stats.revenue_films.labels.length">
+                        <thead><tr><th>Фільм</th><th>Прибуток</th></tr></thead>
+                        <tbody>
+                            <tr v-for="(label, i) in stats.revenue_films.labels" :key="i">
+                                <td>{{ label }}</td>
+                                <td><strong>{{ Math.round(stats.revenue_films.data[i]) }} грн</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p v-else class="text-muted text-center p-3">Немає даних</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Топ користувачі -->
+        <div class="data-table" v-if="stats.top_users.length">
+            <div class="data-table-header">
+                <h5><i class="fas fa-trophy"></i> Топ-10 активних користувачів</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table admin-table">
+                    <thead><tr><th>#</th><th>Користувач</th><th>Email</th><th>Бронювань</th><th>Витрачено</th></tr></thead>
+                    <tbody>
+                        <tr v-for="(u, i) in stats.top_users" :key="i">
+                            <td>{{ i + 1 }}</td>
+                            <td><i class="fas fa-user"></i> {{ u.name }}</td>
+                            <td>{{ u.email }}</td>
+                            <td><span class="badge bg-primary">{{ u.booking_count }}</span></td>
+                            <td><strong>{{ Math.round(u.spent) }} грн</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Admin Films Template -->
+<script type="text/x-template" id="admin-films-template">
+{% raw %}
+<div>
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="container">
+        <Breadcrumbs />
+        <div class="page-header">
+            <div class="skeleton skeleton-title" style="width: 350px;"></div>
+        </div>
+
+        <div class="admin-nav mb-4">
+            <div v-for="n in 4" :key="'nav-skeleton-' + n" class="skeleton d-inline-block" style="width: 150px; height: 42px; margin-right: 12px; border-radius: 8px;"></div>
+        </div>
+
+        <div class="text-center mb-4">
+            <div class="skeleton" style="width: 200px; height: 50px; margin: 0 auto; border-radius: 8px;"></div>
+        </div>
+
+        <!-- Films Table Skeleton -->
+        <div v-for="n in 5" :key="'film-skeleton-' + n" class="mb-3">
+            <div class="skeleton" style="height: 120px; border-radius: 12px;"></div>
+        </div>
+    </div>
+
+    <div v-else class="container">
+        <Breadcrumbs />
+        <div class="page-header">
+            <h1><i class="fas fa-film"></i> Керування фільмами</h1>
+        </div>
+
+        <div class="admin-nav">
+            <router-link to="/admin" class="btn btn-outline-light"><i class="fas fa-chart-bar"></i> Статистика</router-link>
+            <router-link to="/admin/films" class="btn btn-primary"><i class="fas fa-film"></i> Фільми</router-link>
+            <router-link to="/admin/sessions" class="btn btn-outline-light"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
+            <router-link to="/admin/calendar" class="btn btn-outline-light"><i class="fas fa-calendar-week"></i> Календар</router-link>
+        </div>
+
+        <div class="text-center mb-4">
+            <button class="btn btn-primary btn-lg" @click="openAddForm">
+                <i class="fas fa-plus-circle"></i> Додати фільм
+            </button>
+        </div>
+
+        <!-- Форма -->
+        <div v-if="showForm" class="admin-form-card">
+            <h4>
+                <i :class="editingFilm ? 'fas fa-edit' : 'fas fa-plus-circle'"></i>
+                {{ editingFilm ? 'Редагувати фільм' : 'Додати новий фільм' }}
+            </h4>
+            <div v-if="formError" class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ formError }}</div>
+            <form @submit.prevent="submitForm">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Назва фільму *</label>
+                            <input v-model="form.title" class="form-control" placeholder="Назва фільму">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Опис *</label>
+                            <textarea v-model="form.description" class="form-control" rows="4" placeholder="Опис фільму (мін. 10 символів)"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Жанр</label>
+                            <input v-model="form.genre" class="form-control" placeholder="Бойовик, Комедія...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Режисер</label>
+                            <input v-model="form.director" class="form-control" placeholder="Крістофер Нолан">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Актори</label>
+                            <textarea v-model="form.actors" class="form-control" rows="2" placeholder="Через кому"></textarea>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Тривалість (хв)</label>
+                            <input type="number" v-model="form.duration" class="form-control" min="1" max="500">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Віковий рейтинг</label>
+                            <select v-model="form.age_rating" class="form-select">
+                                <option value="">Не вказано</option>
+                                <option value="G">G - Для всіх</option>
+                                <option value="PG">PG - Рекомендовано з батьками</option>
+                                <option value="PG-13">PG-13 - Дітям до 13 з батьками</option>
+                                <option value="R">R - 16+</option>
+                                <option value="NC-17">NC-17 - 18+</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Рік випуску</label>
+                            <input type="number" v-model="form.release_year" class="form-control" min="1900" max="2030">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">URL трейлера (YouTube)</label>
+                            <input v-model="form.trailer" class="form-control" placeholder="https://youtube.com/watch?v=...">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Постер</label>
+                            <input type="file" class="form-control" accept="image/*" @change="onFileChange">
+                            <small class="text-muted" v-if="editingFilm">Залиште порожнім, щоб не змінювати</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary btn-lg" :disabled="submitting">
+                        <span v-if="submitting"><span class="spinner-border spinner-border-sm me-1"></span></span>
+                        <i v-else class="fas fa-save"></i> Зберегти
+                    </button>
+                    <button type="button" class="btn btn-outline-light btn-lg ms-2" @click="cancelForm">
+                        <i class="fas fa-times"></i> Скасувати
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Список фільмів -->
+        <h3 class="section-title"><i class="fas fa-list"></i> Фільми ({{ films.length }})</h3>
+        <div v-if="films.length" class="row">
+            <div v-for="film in films" :key="film.id" class="col-lg-4 col-md-6 mb-4">
+                <div class="admin-film-card">
+                    <img v-if="film.image" :src="film.image" class="card-img-top" :alt="film.title">
+                    <div v-else class="placeholder-img"><i class="fas fa-film fa-3x"></i></div>
+                    <div class="admin-film-card-body">
+                        <h6 class="fw-bold mb-2">{{ film.title }}</h6>
+                        <p class="text-muted small mb-2">{{ truncate(film.description, 80) }}</p>
+                        <div class="mb-2">
+                            <span v-if="film.genre" class="badge bg-primary me-1">{{ film.genre }}</span>
+                            <span v-if="film.release_year" class="badge bg-secondary me-1">{{ film.release_year }}</span>
+                            <span v-if="film.duration" class="badge bg-info me-1">{{ film.duration }} хв</span>
+                        </div>
+                        <div class="small text-muted mb-2">
+                            <i class="fas fa-ticket-alt"></i> {{ film.sessions_count }} сеансів
+                            <span v-if="film.review_count > 0" class="ms-2">
+                                <i class="fas fa-star" style="color: #fbbf24;"></i> {{ film.average_rating }}/5 ({{ film.review_count }})
+                            </span>
+                        </div>
+                        <div class="d-grid gap-2 mt-auto">
+                            <button class="btn btn-warning btn-sm" @click="openEditForm(film)">
+                                <i class="fas fa-edit"></i> Редагувати
+                            </button>
+                            <button class="btn btn-danger btn-sm" @click="deleteFilm(film)">
+                                <i class="fas fa-trash"></i> Видалити
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div v-else class="text-center text-muted py-5">
+            <i class="fas fa-film fa-3x mb-3" style="opacity:0.3;"></i>
+            <p>Фільмів ще немає</p>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- Admin Sessions Template -->
+<script type="text/x-template" id="admin-sessions-template">
+{% raw %}
+<div>
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="container">
+        <Breadcrumbs />
+        <div class="page-header">
+            <div class="skeleton skeleton-title" style="width: 350px;"></div>
+        </div>
+
+        <div class="admin-nav mb-4">
+            <div v-for="n in 4" :key="'nav-skeleton-' + n" class="skeleton d-inline-block" style="width: 150px; height: 42px; margin-right: 12px; border-radius: 8px;"></div>
+        </div>
+
+        <div class="text-center mb-4">
+            <div class="skeleton" style="width: 200px; height: 50px; margin: 0 auto; border-radius: 8px;"></div>
+        </div>
+
+        <!-- Sessions Table Skeleton -->
+        <div v-for="n in 6" :key="'session-skeleton-' + n" class="mb-3">
+            <div class="skeleton" style="height: 100px; border-radius: 12px;"></div>
+        </div>
+    </div>
+
+    <div v-else class="container">
+        <Breadcrumbs />
+        <div class="page-header">
+            <h1><i class="fas fa-calendar-alt"></i> Керування сеансами</h1>
+        </div>
+
+        <div class="admin-nav">
+            <router-link to="/admin" class="btn btn-outline-light"><i class="fas fa-chart-bar"></i> Статистика</router-link>
+            <router-link to="/admin/films" class="btn btn-outline-light"><i class="fas fa-film"></i> Фільми</router-link>
+            <router-link to="/admin/sessions" class="btn btn-primary"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
+            <router-link to="/admin/calendar" class="btn btn-outline-light"><i class="fas fa-calendar-week"></i> Календар</router-link>
+        </div>
+
+        <div class="text-center mb-4">
+            <button class="btn btn-primary btn-lg" @click="openForm">
+                <i class="fas fa-plus-circle"></i> Додати сеанс
+            </button>
+        </div>
+
+        <!-- Форма -->
+        <div v-if="showForm" class="admin-form-card">
+            <h4><i class="fas fa-plus-circle"></i> Новий сеанс</h4>
+            <div v-if="formError" class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ formError }}</div>
+            <form @submit.prevent="submitForm">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Фільм *</label>
+                        <select v-model="form.film_id" class="form-select">
+                            <option value="">Оберіть фільм</option>
+                            <option v-for="f in films" :key="f.id" :value="f.id">{{ f.title }}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Дата і час *</label>
+                        <input type="datetime-local" v-model="form.start_time" class="form-control">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Ціна (грн) *</label>
+                        <input type="number" v-model="form.price" class="form-control" min="0" max="10000" step="0.01" placeholder="150">
+                    </div>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary" :disabled="submitting">
+                        <span v-if="submitting"><span class="spinner-border spinner-border-sm me-1"></span></span>
+                        <i v-else class="fas fa-save"></i> Створити сеанс
+                    </button>
+                    <button type="button" class="btn btn-outline-light ms-2" @click="showForm = false">
+                        <i class="fas fa-times"></i> Скасувати
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Фільтри -->
+        <div class="filter-btns mb-4 text-center">
+            <button class="btn" :class="filter === 'all' ? 'btn-primary' : 'btn-outline-light'" @click="filter = 'all'">
+                Усі ({{ sessions.length }})
+            </button>
+            <button class="btn ms-2" :class="filter === 'active' ? 'btn-primary' : 'btn-outline-light'" @click="filter = 'active'">
+                <i class="fas fa-check-circle"></i> Активні ({{ activeSessions.length }})
+            </button>
+            <button class="btn ms-2" :class="filter === 'cancelled' ? 'btn-primary' : 'btn-outline-light'" @click="filter = 'cancelled'">
+                <i class="fas fa-times-circle"></i> Скасовані ({{ cancelledSessions.length }})
+            </button>
+        </div>
+
+        <!-- Список -->
+        <div v-if="filteredSessions.length">
+            <div v-for="s in filteredSessions" :key="s.id" class="session-row" :class="{ cancelled: s.status === 'cancelled' }">
+                <div>
+                    <h6 class="mb-1">
+                        <i class="fas fa-film"></i> {{ s.film_title }}
+                        <span v-if="s.status === 'cancelled'" class="badge bg-danger ms-1">Скасовано</span>
+                        <span v-else class="badge bg-success ms-1">Активний</span>
+                    </h6>
+                    <div class="small text-muted">
+                        <i class="fas fa-clock"></i> {{ formatDateTime(s.start_time) }}
+                        &nbsp;|&nbsp; <i class="fas fa-money-bill-wave"></i> {{ s.price }} грн
+                        &nbsp;|&nbsp; <i class="fas fa-couch"></i> {{ s.booked }}/{{ s.total_seats }} зайнято
+                        &nbsp;|&nbsp; <i class="fas fa-check"></i> {{ s.available }} вільних
+                    </div>
+                </div>
+                <div>
+                    <button v-if="s.status === 'active'" class="btn btn-outline-danger btn-sm" @click="cancelSession(s)">
+                        <i class="fas fa-ban"></i> Скасувати
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div v-else class="text-center text-muted py-5">
+            <i class="fas fa-calendar fa-3x mb-3" style="opacity:0.3;"></i>
+            <p>Сеансів не знайдено</p>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- ========================================= -->
+<!-- Admin Calendar Template -->
+<!-- ========================================= -->
+<script type="text/x-template" id="admin-calendar-template">
+{% raw %}
+<div>
+    <!-- Skeleton Loader -->
+    <div v-if="loading" class="container-fluid px-4">
+        <div class="container">
+            <Breadcrumbs />
+        </div>
+        <div class="page-header text-center py-4">
+            <div class="skeleton skeleton-title" style="width: 350px; margin: 0 auto;"></div>
+        </div>
+
+        <div class="admin-nav mb-4">
+            <div v-for="n in 4" :key="'nav-skeleton-' + n" class="skeleton d-inline-block" style="width: 150px; height: 42px; margin-right: 12px; border-radius: 8px;"></div>
+        </div>
+
+        <!-- Week Navigation Skeleton -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="skeleton" style="height: 120px; border-radius: 15px;"></div>
+            </div>
+        </div>
+
+        <!-- Calendar Grid Skeleton -->
+        <div class="row">
+            <div class="col-12">
+                <div class="skeleton" style="height: 600px; border-radius: 15px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div v-else class="container-fluid px-4">
+        <div class="container">
+            <Breadcrumbs />
+        </div>
+        <div class="page-header text-center py-4">
+            <h1><i class="fas fa-calendar-week"></i> Календар сеансів</h1>
+        </div>
+
+        <!-- Admin Navigation -->
+        <div class="admin-nav mb-4">
+            <router-link to="/admin" class="btn btn-outline-light"><i class="fas fa-chart-bar"></i> Статистика</router-link>
+            <router-link to="/admin/films" class="btn btn-outline-light"><i class="fas fa-film"></i> Фільми</router-link>
+            <router-link to="/admin/sessions" class="btn btn-outline-light"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
+            <router-link to="/admin/calendar" class="btn btn-primary"><i class="fas fa-calendar-week"></i> Календар</router-link>
+        </div>
+
+        <!-- Week Navigation -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center week-nav-card p-3">
+                    <div>
+                        <button @click="prevWeek" class="btn btn-primary">
+                            <i class="fas fa-chevron-left"></i> Попередній
+                        </button>
+                    </div>
+                    <div class="text-center">
+                        <h4 class="mb-2" style="color: #a78bfa;">
+                            {{ weekLabel() }}
+                        </h4>
+                        <p class="text-muted mb-0">{{ weekRange() }}</p>
+                        <button v-if="weekOffset !== 0" @click="currentWeek" class="btn btn-sm btn-outline-light mt-2">
+                            <i class="fas fa-home"></i> Повернутись до поточного
+                        </button>
+                    </div>
+                    <div>
+                        <button @click="nextWeek" class="btn btn-primary">
+                            Наступний <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="row mb-3">
+            <div class="col-12">
+                <div class="legend-card d-flex align-items-center gap-3 flex-wrap p-3">
+                    <strong style="color: #a78bfa;">Легенда:</strong>
+                    <span class="badge bg-success px-3 py-2">
+                        <i class="fas fa-check-circle"></i> Активний сеанс
+                    </span>
+                    <span class="badge bg-secondary px-3 py-2">
+                        <i class="fas fa-times-circle"></i> Скасований
+                    </span>
+                    <span class="badge bg-primary px-3 py-2">
+                        <i class="fas fa-plus-circle"></i> Вільний слот
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Calendar Grid -->
+        <div class="table-responsive">
+            <table class="table calendar-grid">
+                <thead>
+                    <tr>
+                        <th style="width: 70px;">Час</th>
+                        <th v-for="day in weekDays" :key="day.date" class="text-center">
+                            <div><strong>{{ day.day_name }}</strong></div>
+                            <div class="small">{{ day.full_date }}</div>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="time in timeSlots" :key="time">
+                        <td class="text-center align-middle fw-bold">{{ time }}</td>
+                        <td v-for="day in weekDays" :key="day.date" class="p-1 calendar-cell">
+                            <!-- Sessions in this slot -->
+                            <div v-if="getSessionsForSlot(day.date, time).length > 0">
+                                <div v-for="session in getSessionsForSlot(day.date, time)" :key="session.id" 
+                                     class="session-card p-1"
+                                     :class="session.status === 'active' ? 'bg-success' : 'bg-secondary'">
+                                    
+                                    <!-- Cancel button -->
+                                    <button v-if="session.status === 'active'" 
+                                            @click="cancelSession(session.id, $event)"
+                                            class="cancel-session-btn"
+                                            title="Скасувати сеанс">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+
+                                    <div class="fw-bold text-truncate" :title="session.film_title">
+                                        🎬 {{ session.film_title.substring(0, 22) }}<span v-if="session.film_title.length > 22">...</span>
+                                    </div>
+                                    <div class="small">
+                                        <i class="fas fa-wallet"></i> {{ session.price }}₴
+                                    </div>
+                                    <div v-if="session.status === 'active'" class="small">
+                                        <i class="fas fa-users"></i> {{ session.booked }}/{{ session.booked + session.available }}
+                                        <div class="progress mt-1">
+                                            <div class="progress-bar session-progress" 
+                                                 :style="{width: ((session.booked / (session.booked + session.available)) * 100) + '%'}"></div>
+                                        </div>
+                                    </div>
+                                    <div v-else class="small">
+                                        <i class="fas fa-ban"></i> Скасовано
+                                        <button @click="openCreateModal(day.date, time)"
+                                                class="add-new-session-btn">
+                                            <i class="fas fa-plus"></i> Новий
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Empty slot -->
+                            <div v-else 
+                                 @click="openCreateModal(day.date, time)"
+                                 class="empty-slot">
+                                <div class="text-center">
+                                    <i class="fas fa-plus-circle text-muted"></i>
+                                    <small class="text-muted d-block">Додати</small>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Create Session Modal -->
+        <div v-if="showModal" class="modal-overlay" @click.self="showModal = false">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="fas fa-plus-circle"></i> Створити новий сеанс
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" @click="showModal = false"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-calendar-day"></i> Дата</label>
+                            <input type="text" class="form-control" :value="modalData.dateDisplay" readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-clock"></i> Час початку</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-clock"></i></span>
+                                <input type="text" class="form-control" v-model="modalData.time" readonly>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-film"></i> Фільм</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-film"></i></span>
+                                <select class="form-select" v-model="createForm.film_id">
+                                    <option value="">Оберіть фільм...</option>
+                                    <option v-for="film in films" :key="film.id" :value="film.id">{{ film.title }}</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-money-bill-wave"></i> Ціна квитка</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-hryvnia-sign"></i></span>
+                                <input type="number" class="form-control" v-model="createForm.price" step="0.01" min="0" placeholder="Введіть ціну">
+                                <span class="input-group-text">₴</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @click="showModal = false">
+                            <i class="fas fa-times"></i> Скасувати
+                        </button>
+                        <button type="button" class="btn btn-primary" @click="createSession" :disabled="submitting">
+                            <span v-if="submitting"><span class="spinner-border spinner-border-sm me-1"></span> Створення...</span>
+                            <span v-else><i class="fas fa-check"></i> Створити сеанс</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- ========================================= -->
+<!-- Not Found Page Template -->
+<!-- ========================================= -->
+<script type="text/x-template" id="not-found-template">
+{% raw %}
+<div class="container">
+    <div class="not-found-container">
+        <div class="not-found-content">
+            <div class="not-found-number">404</div>
+            <div class="not-found-text">
+                <i class="fas fa-exclamation-triangle"></i> Сторінку не знайдено
+            </div>
+            <p class="not-found-description">
+                Вибачте, але сторінка, яку ви шукаєте, не існує або була переміщена.
+            </p>
+            <div class="d-flex gap-3 justify-content-center">
+                <button @click="goHome" class="btn btn-primary btn-lg">
+                    <i class="fas fa-home"></i> На головну
+                </button>
+                <button @click="goBack" class="btn btn-outline-light btn-lg">
+                    <i class="fas fa-arrow-left"></i> Назад
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
+<script src="{{ url_for('static', filename='js/spa-app.js') }}"></script>
+{% endblock %}
