@@ -11,6 +11,10 @@ auth_bp = Blueprint('auth', __name__)
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Вхід користувача"""
+    if request.method == 'GET':
+        return redirect('/app/login')
+    
+    # POST - обробка старої форми (legacy)
     form = LoginForm()
     
     if form.validate_on_submit():
@@ -27,6 +31,10 @@ def login():
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
     """Реєстрація нового користувача"""
+    if request.method == 'GET':
+        return redirect('/app/register')
+    
+    # POST - обробка старої форми (legacy)
     form = RegistrationForm()
     
     if form.validate_on_submit():
