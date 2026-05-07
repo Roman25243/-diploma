@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #0f766e 0%, #2563eb 100%);
+            color: white;
+            padding: 28px;
+            text-align: center;
+            border-radius: 12px 12px 0 0;
+        }
+        .content {
+            background: #f8fafc;
+            padding: 28px;
+            border-radius: 0 0 12px 12px;
+        }
+        .ticket-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 10px 0;
+            border-bottom: 1px solid #eef2f7;
+        }
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        .label {
+            font-weight: bold;
+            color: #0f766e;
+        }
+        .value {
+            text-align: right;
+        }
+        .qr-box {
+            margin: 22px 0;
+            padding: 18px;
+            text-align: center;
+            border: 1px dashed #94a3b8;
+            border-radius: 12px;
+            background: #f8fafc;
+        }
+        .button {
+            display: inline-block;
+            background: #2563eb;
+            color: white !important;
+            padding: 12px 22px;
+            text-decoration: none;
+            border-radius: 8px;
+            margin-top: 12px;
+        }
+        .footer {
+            text-align: center;
+            color: #64748b;
+            font-size: 12px;
+            margin-top: 18px;
+        }
+        .small {
+            color: #64748b;
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎫 Ваш QR-квиток готовий</h1>
+    </div>
+
+    <div class="content">
+        <p>Вітаємо, <strong>{{ user_name }}</strong>!</p>
+        <p>Оплату підтверджено, і квиток для входу вже сформовано. QR-код прикріплено до цього листа.</p>
+
+        <div class="ticket-card">
+            <div class="info-row">
+                <span class="label">🎥 Фільм</span>
+                <span class="value">{{ film_title }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">🕐 Сеанс</span>
+                <span class="value">{{ session_time }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">💺 Місце</span>
+                <span class="value">Ряд {{ seat_row }}, місце {{ seat_number }}</span>
+            </div>
+            <div class="info-row">
+                <span class="label">🔑 Код квитка</span>
+                <span class="value small">{{ ticket_token }}</span>
+            </div>
+        </div>
+
+        <div class="qr-box">
+            <p><strong>Якщо вкладення не відкривається, скористайтеся цим посиланням:</strong></p>
+            <a class="button" href="{{ qr_url }}">Відкрити QR-код</a>
+        </div>
+
+        <p>
+            <strong>На вході:</strong><br>
+            Показуйте QR-код з листа або відкрийте його за посиланням вище.
+        </p>
+
+        <p style="text-align: center; margin-top: 28px;">
+            <a href="{{ profile_url }}" class="button">Перейти до моїх квитків</a>
+        </p>
+
+        <div class="footer">
+            <p>Приємного перегляду! 🍿</p>
+            <p>Якщо є питання, зверніться до підтримки.</p>
+        </div>
+    </div>
+</body>
+</html>

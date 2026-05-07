@@ -605,6 +605,11 @@
         background: linear-gradient(135deg, rgba(107,114,128,0.3) 0%, rgba(75,85,99,0.3) 100%);
         border-color: rgba(107,114,128,0.5); color: #6b7280; cursor: not-allowed; opacity: 0.5;
     }
+    .spa-seat.blocked {
+        background: linear-gradient(135deg, rgba(239,68,68,0.18) 0%, rgba(185,28,28,0.18) 100%);
+        border-color: rgba(239,68,68,0.55); color: #f87171; cursor: not-allowed; opacity: 0.7;
+    }
+    .spa-seat.blocked:hover { transform: none; box-shadow: none; }
     .booking-summary {
         background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
         border: 1px solid rgba(139,92,246,0.3); padding: 1.5rem; border-radius: 15px;
@@ -681,6 +686,23 @@
         border: 1px solid rgba(139,92,246,0.3); border-radius: 15px; padding: 2rem; margin-bottom: 2rem;
     }
     .admin-form-card h4 { color: #a78bfa; font-weight: 700; margin-bottom: 1.5rem; }
+    .admin-form-card .form-control,
+    .admin-form-card .form-select {
+        background: linear-gradient(135deg, rgba(20, 25, 55, 0.9) 0%, rgba(25, 30, 60, 0.9) 100%) !important;
+        border: 2px solid rgba(139, 92, 246, 0.5) !important;
+        color: #e9d5ff !important;
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+    }
+    .admin-form-card .form-control:focus,
+    .admin-form-card .form-select:focus {
+        background: linear-gradient(135deg, rgba(25, 30, 60, 0.95) 0%, rgba(30, 35, 70, 0.95) 100%) !important;
+        border-color: rgba(167, 139, 250, 0.8) !important;
+        box-shadow: 0 0 0 0.2rem rgba(139, 92, 246, 0.25) !important;
+        color: #ffffff !important;
+    }
     .admin-film-card {
         background: linear-gradient(135deg, rgba(139,92,246,0.1) 0%, rgba(236,72,153,0.1) 100%);
         border: 1px solid rgba(139,92,246,0.3); border-radius: 12px; overflow: hidden;
@@ -1110,6 +1132,28 @@
         box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
     }
 
+    /* Темні фони для опцій select у модалах та админ-формах */
+    .modal-content .form-select option,
+    .admin-form-card .form-select option {
+        background: #1a1f3a;
+        color: #e9d5ff;
+    }
+
+    /* Приховування стрілочок у input type="number" */
+    input[type="number"] {
+        appearance: textfield;
+        -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+    }
+    .modal-content .form-select option {
+        background: #1a1f3a;
+        color: #e9d5ff;
+    }
+
     .modal-content .btn-primary {
         background: linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%) !important;
         border: 2px solid rgba(167, 139, 250, 0.8) !important;
@@ -1252,13 +1296,13 @@
                                 <button v-if="$root.$data.authState && $root.$data.authState.authenticated"
                                         @click.stop="toggleFavorite(film)"
                                         class="btn btn-sm"
-                                        :class="film.is_favorited ? 'btn-danger' : 'btn-outline-primary'"
-                                        :title="film.is_favorited ? 'Видалити з обраних' : 'Додати до обраних'">
+                                        :class="film.is_favorite ? 'btn-danger' : 'btn-outline-primary'"
+                                        :title="film.is_favorite ? 'Видалити з обраних' : 'Додати до обраних'">
                                     <i class="fas fa-heart"></i>
                                 </button>
-                                <button @click.stop="goToFilm(film.id)" class="btn btn-sm btn-primary">
-                                    <i class="fas fa-info-circle"></i> Детальніше
-                                </button>
+                                <router-link :to="'/film/' + film.id" @click.stop class="btn btn-sm btn-primary flex-grow-1">
+                                    <i class="fas fa-ticket-alt"></i> Купити білет
+                                </router-link>
                             </div>
                         </div>
                     </div>
@@ -1524,7 +1568,16 @@
                         <div v-for="session in sessions" :key="session.id" class="session-card">
                             <div>
                                 <div class="session-time"><i class="fas fa-clock"></i> {{ session.start_time }}</div>
-                                <div class="session-price"><i class="fas fa-money-bill-wave"></i> {{ session.price }} грн</div>
+                                <div class="session-price">
+                                    <i class="fas fa-money-bill-wave"></i> {{ formatMoney(session.price) }} грн
+                                    <small v-if="session.base_price && session.base_price !== session.price" class="text-muted ms-2" style="text-decoration: line-through;">
+                                        {{ formatMoney(session.base_price) }} грн
+                                    </small>
+                                </div>
+                                <small v-if="session.pricing" class="text-muted d-block">
+                                    Попит: {{ Math.round((session.pricing.occupancy_ratio || 0) * 100) }}% |
+                                    Лояльність: -{{ Math.round((session.pricing.loyalty_discount || 0) * 100) }}%
+                                </small>
                                 <small class="text-muted">Вільних місць: {{ session.available_seats }}</small>
                             </div>
                             <router-link :to="'/seats/' + session.id" class="btn btn-primary">
@@ -1559,7 +1612,9 @@
                                     </template>
                                     <small v-else class="text-muted">Немає відгуків</small>
                                 </div>
-                                <router-link :to="'/film/' + similar.id" class="btn btn-primary w-100" @click.stop>Детальніше</router-link>
+                                <router-link :to="'/film/' + similar.id" class="btn btn-primary w-100" @click.stop>
+                                    <i class="fas fa-ticket-alt"></i> Купити білет
+                                </router-link>
                             </div>
                         </div>
                     </div>
@@ -1732,6 +1787,13 @@
                         <router-link :to="'/film/' + booking.film_id" class="btn btn-outline-primary me-2">
                             <i class="fas fa-eye"></i> Фільм
                         </router-link>
+                        <a v-if="booking.ticket && booking.payment_status === 'paid' && !booking.is_cancelled"
+                           :href="booking.ticket.qr_url"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="btn btn-outline-success me-2">
+                            <i class="fas fa-qrcode"></i> QR-квиток
+                        </a>
                         <button v-if="!booking.is_cancelled" class="btn btn-outline-danger"
                                 @click="cancelBooking(booking.id)">
                             <i class="fas fa-times"></i> Скасувати
@@ -1780,7 +1842,11 @@
             <span class="badge"><i class="fas fa-heart"></i> {{ favorites.length }} фільмів в обраних</span>
         </div>
 
-        <div v-if="favorites.length" class="row">
+        <div v-if="error" class="alert alert-danger text-center">
+            <i class="fas fa-exclamation-triangle"></i> {{ error }}
+        </div>
+
+        <div v-if="!error && favorites.length" class="row">
             <div v-for="fav in favorites" :key="fav.id" class="col-lg-3 col-md-4 col-sm-6 mb-4">
                 <div class="fav-film-card">
                     <img v-if="fav.image" :src="fav.image" class="card-img-top" :alt="fav.title">
@@ -1806,7 +1872,7 @@
             </div>
         </div>
 
-        <div v-else class="empty-state">
+        <div v-else-if="!error" class="empty-state">
             <i class="far fa-heart"></i>
             <h4>Список обраних порожній</h4>
             <p>Додавайте фільми в обрані, щоб не втратити їх</p>
@@ -1863,7 +1929,17 @@
 
         <div class="session-info">
             <i class="fas fa-money-bill-wave fa-2x mb-2"></i>
-            <p class="mb-0">Ціна квитка: <span class="price-badge">{{ session.price }} грн</span></p>
+            <p class="mb-0">
+                Ціна квитка: <span class="price-badge">{{ formatMoney(session.price) }} грн</span>
+                <small v-if="session.base_price && session.base_price !== session.price" class="text-muted ms-2" style="text-decoration: line-through;">
+                    {{ formatMoney(session.base_price) }} грн
+                </small>
+            </p>
+            <small v-if="session.pricing" class="text-muted d-block mt-2">
+                Часовий коеф.: x{{ session.pricing.time_multiplier }} |
+                Попит: x{{ session.pricing.demand_multiplier }} |
+                Лояльність: -{{ Math.round((session.pricing.loyalty_discount || 0) * 100) }}% ({{ session.pricing.loyalty_tier }})
+            </small>
 
             <div v-if="userBookings.count > 0">
                 <hr style="margin: 1rem 0; border-color: rgba(139, 92, 246, 0.3);">
@@ -1906,6 +1982,10 @@
                 <span class="legend-seat spa-seat booked"></span>
                 <span>Зайнято</span>
             </div>
+            <div class="legend-item">
+                <span class="legend-seat spa-seat blocked"></span>
+                <span>Заблоковано</span>
+            </div>
         </div>
 
         <div class="seats-container">
@@ -1931,7 +2011,7 @@
                     {{ selectedSeats.length }} {{ selectedSeats.length === 1 ? 'місце' : selectedSeats.length < 5 ? 'місця' : 'місць' }}
                 </div>
                 <p class="mb-0" style="font-size: 1.5rem; font-weight: 600; margin-top: 1rem;">
-                    Всього: <span style="color: #28a745;">{{ totalPrice }} грн</span>
+                    Всього: <span style="color: #28a745;">{{ formatMoney(totalPrice) }} грн</span>
                 </p>
 
                 <button
@@ -1941,11 +2021,11 @@
                 >
                     <span v-if="booking">
                         <span class="spinner-border spinner-border-sm me-2"></span>
-                        Бронювання...
+                        Підготовка оплати...
                     </span>
                     <span v-else>
-                        <i class="fas fa-check-circle me-2"></i>
-                        Забронювати
+                        <i class="fas fa-credit-card me-2"></i>
+                        Забронювати та оплатити
                     </span>
                 </button>
             </div>
@@ -2113,6 +2193,7 @@
             <router-link to="/admin/films" class="btn btn-outline-light"><i class="fas fa-film"></i> Фільми</router-link>
             <router-link to="/admin/sessions" class="btn btn-outline-light"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
             <router-link to="/admin/calendar" class="btn btn-outline-light"><i class="fas fa-calendar-week"></i> Календар</router-link>
+            <router-link to="/admin/scanner" class="btn btn-outline-light"><i class="fas fa-qrcode"></i> Сканер</router-link>
         </div>
 
         <!-- Метрики -->
@@ -2148,8 +2229,71 @@
             </div>
         </div>
 
+        <!-- Залі -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="data-table">
+                    <div class="data-table-header">
+                        <h5><i class="fas fa-door-open"></i> Статистика по залам ({{ stats.total_halls }})</h5>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table admin-table" v-if="stats.halls_stats && stats.halls_stats.length">
+                            <thead>
+                                <tr>
+                                    <th>Зал</th>
+                                    <th>Сеансів</th>
+                                    <th>Місць (Заброньовано/Всього)</th>
+                                    <th>Окупованість</th>
+                                    <th>Виручка</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr v-for="hall in stats.halls_stats" :key="hall.hall_id">
+                                    <td><strong>{{ hall.hall_name }}</strong></td>
+                                    <td><span class="badge bg-info">{{ hall.sessions_count }}</span></td>
+                                    <td>{{ hall.booked_seats }}/{{ hall.total_seats }}</td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar" :style="`width: ${hall.occupancy_pct}%; background-color: ${hall.occupancy_pct > 70 ? '#10b981' : hall.occupancy_pct > 40 ? '#fbbf24' : '#ef4444'}`">
+                                                {{ hall.occupancy_pct }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><strong>{{ Math.round(hall.revenue) }} грн</strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Графіки по залам -->
+        <div class="row mt-4" v-show="occupancyData && revenueData">
+            <div class="col-lg-6">
+                <div class="data-table">
+                    <div class="data-table-header">
+                        <h5><i class="fas fa-chart-bar"></i> Окупованість по залам</h5>
+                    </div>
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="occupancyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="data-table">
+                    <div class="data-table-header">
+                        <h5><i class="fas fa-chart-line"></i> Виручка по залам</h5>
+                    </div>
+                    <div style="position: relative; height: 300px;">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Топ фільми -->
-        <div class="row">
+        <div class="row mt-4">
             <div class="col-md-6">
                 <div class="data-table">
                     <div class="data-table-header">
@@ -2187,7 +2331,7 @@
         </div>
 
         <!-- Топ користувачі -->
-        <div class="data-table" v-if="stats.top_users.length">
+        <div class="data-table mt-4" v-if="stats.top_users.length">
             <div class="data-table-header">
                 <h5><i class="fas fa-trophy"></i> Топ-10 активних користувачів</h5>
             </div>
@@ -2248,6 +2392,7 @@
             <router-link to="/admin/films" class="btn btn-primary"><i class="fas fa-film"></i> Фільми</router-link>
             <router-link to="/admin/sessions" class="btn btn-outline-light"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
             <router-link to="/admin/calendar" class="btn btn-outline-light"><i class="fas fa-calendar-week"></i> Календар</router-link>
+            <router-link to="/admin/scanner" class="btn btn-outline-light"><i class="fas fa-qrcode"></i> Сканер</router-link>
         </div>
 
         <div class="text-center mb-4">
@@ -2404,11 +2549,68 @@
             <h1><i class="fas fa-calendar-alt"></i> Керування сеансами</h1>
         </div>
 
+        <div v-if="error" class="alert alert-warning d-flex align-items-center" role="alert">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <span>{{ error }}</span>
+        </div>
+
         <div class="admin-nav">
             <router-link to="/admin" class="btn btn-outline-light"><i class="fas fa-chart-bar"></i> Статистика</router-link>
             <router-link to="/admin/films" class="btn btn-outline-light"><i class="fas fa-film"></i> Фільми</router-link>
             <router-link to="/admin/sessions" class="btn btn-primary"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
             <router-link to="/admin/calendar" class="btn btn-outline-light"><i class="fas fa-calendar-week"></i> Календар</router-link>
+            <router-link to="/admin/scanner" class="btn btn-outline-light"><i class="fas fa-qrcode"></i> Сканер</router-link>
+        </div>
+
+        <div class="admin-form-card mb-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <h4 class="mb-1"><i class="fas fa-door-open"></i> Кінозали</h4>
+                    <p class="text-muted mb-0">Створіть кілька залів і редагуйте їх, поки в них ще немає сеансів.</p>
+                </div>
+                <div class="badge bg-secondary px-3 py-2">Залів: {{ halls.length }}</div>
+            </div>
+            <div v-if="hallError" class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ hallError }}</div>
+            <form @submit.prevent="createHall">
+                <div class="row">
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label">Назва залу</label>
+                        <input type="text" v-model="hallForm.name" class="form-control" placeholder="Наприклад: Зал 1">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Ряди</label>
+                        <input type="number" v-model="hallForm.rows" class="form-control" min="1" max="30">
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Місць у ряду</label>
+                        <input type="number" v-model="hallForm.seats_per_row" class="form-control" min="1" max="30">
+                    </div>
+                    <div class="col-md-1 mb-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100" :disabled="hallSubmitting">
+                            <span v-if="hallSubmitting"><span class="spinner-border spinner-border-sm"></span></span>
+                            <i v-else :class="editingHallId ? 'fas fa-save' : 'fas fa-plus'"></i>
+                        </button>
+                    </div>
+                </div>
+                <div v-if="editingHallId" class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                    <small class="text-warning"><i class="fas fa-info-circle"></i> Режим редагування залу</small>
+                    <button type="button" class="btn btn-outline-light btn-sm" @click="cancelHallEdit">
+                        <i class="fas fa-times"></i> Скасувати редагування
+                    </button>
+                </div>
+            </form>
+            <div class="d-flex flex-wrap gap-2 mt-2">
+                <span v-if="!halls.length" class="text-muted">Поки що немає жодного залу</span>
+                <span v-for="hall in halls" :key="hall.id" class="badge bg-dark border border-light px-3 py-2 d-inline-flex align-items-center gap-2">
+                    <span><i class="fas fa-door-open me-1"></i> {{ hall.name }} · {{ hall.rows }}×{{ hall.seats_per_row }}</span>
+                    <button type="button" class="btn btn-sm btn-outline-warning" @click="editHall(hall)" title="Редагувати зал">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-light" @click="deleteHall(hall)" title="Видалити зал">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </span>
+            </div>
         </div>
 
         <div class="text-center mb-4">
@@ -2423,18 +2625,25 @@
             <div v-if="formError" class="alert alert-danger"><i class="fas fa-exclamation-circle"></i> {{ formError }}</div>
             <form @submit.prevent="submitForm">
                 <div class="row">
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label class="form-label">Фільм *</label>
                         <select v-model="form.film_id" class="form-select">
                             <option value="">Оберіть фільм</option>
                             <option v-for="f in films" :key="f.id" :value="f.id">{{ f.title }}</option>
                         </select>
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label">Зал *</label>
+                        <select v-model="form.hall_id" class="form-select">
+                            <option value="">Оберіть зал</option>
+                            <option v-for="hall in halls" :key="hall.id" :value="hall.id">{{ hall.name }} ({{ hall.rows }}×{{ hall.seats_per_row }})</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3 mb-3">
                         <label class="form-label">Дата і час *</label>
                         <input type="datetime-local" v-model="form.start_time" class="form-control">
                     </div>
-                    <div class="col-md-4 mb-3">
+                    <div class="col-md-3 mb-3">
                         <label class="form-label">Ціна (грн) *</label>
                         <input type="number" v-model="form.price" class="form-control" min="0" max="10000" step="0.01" placeholder="150">
                     </div>
@@ -2475,12 +2684,16 @@
                     </h6>
                     <div class="small text-muted">
                         <i class="fas fa-clock"></i> {{ formatDateTime(s.start_time) }}
+                        &nbsp;|&nbsp; <i class="fas fa-door-open"></i> {{ s.hall_name }}
                         &nbsp;|&nbsp; <i class="fas fa-money-bill-wave"></i> {{ s.price }} грн
                         &nbsp;|&nbsp; <i class="fas fa-couch"></i> {{ s.booked }}/{{ s.total_seats }} зайнято
                         &nbsp;|&nbsp; <i class="fas fa-check"></i> {{ s.available }} вільних
                     </div>
                 </div>
                 <div>
+                    <router-link :to="'/admin/sessions/' + s.id + '/hall'" class="btn btn-outline-warning btn-sm me-2">
+                        <i class="fas fa-couch"></i> Редактор залу
+                    </router-link>
                     <button v-if="s.status === 'active'" class="btn btn-outline-danger btn-sm" @click="cancelSession(s)">
                         <i class="fas fa-ban"></i> Скасувати
                     </button>
@@ -2490,6 +2703,124 @@
         <div v-else class="text-center text-muted py-5">
             <i class="fas fa-calendar fa-3x mb-3" style="opacity:0.3;"></i>
             <p>Сеансів не знайдено</p>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- ========================================= -->
+<!-- Admin Hall Editor Template -->
+<!-- ========================================= -->
+<script type="text/x-template" id="admin-hall-editor-template">
+{% raw %}
+<div>
+    <div v-if="loading" class="container">
+        <Breadcrumbs />
+        <div class="page-header">
+            <div class="skeleton skeleton-title" style="width: 360px;"></div>
+        </div>
+        <div class="skeleton" style="height: 220px; border-radius: 16px; margin-bottom: 20px;"></div>
+        <div class="skeleton" style="height: 520px; border-radius: 16px;"></div>
+    </div>
+
+    <div v-else-if="error" class="container">
+        <Breadcrumbs />
+        <div class="alert alert-danger text-center"><i class="fas fa-exclamation-triangle"></i> {{ error }}</div>
+    </div>
+
+    <div v-else class="container">
+        <Breadcrumbs />
+        <div class="page-header text-center">
+            <h1><i class="fas fa-couch"></i> Редактор залу</h1>
+            <p class="text-muted mb-0">{{ session.film_title }} · {{ session.hall_name || 'Невідомий зал' }} · {{ formatDateTime(session.start_time) }}</p>
+        </div>
+
+        <div class="admin-nav">
+            <router-link to="/admin" class="btn btn-outline-light"><i class="fas fa-chart-bar"></i> Статистика</router-link>
+            <router-link to="/admin/films" class="btn btn-outline-light"><i class="fas fa-film"></i> Фільми</router-link>
+            <router-link to="/admin/sessions" class="btn btn-outline-light"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
+            <router-link to="/admin/calendar" class="btn btn-outline-light"><i class="fas fa-calendar-week"></i> Календар</router-link>
+            <router-link to="/admin/scanner" class="btn btn-outline-light"><i class="fas fa-qrcode"></i> Сканер</router-link>
+        </div>
+
+        <div class="admin-form-card">
+            <div class="row align-items-center g-3">
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label">Ряди</label>
+                    <input type="number" class="form-control" v-model.number="layout.rows" min="1" max="30" :disabled="!canResize">
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <label class="form-label">Місць у ряду</label>
+                    <input type="number" class="form-control" v-model.number="layout.seats_per_row" min="1" max="30" :disabled="!canResize">
+                </div>
+                <div class="col-lg-6">
+                    <div class="d-flex flex-wrap gap-2 justify-content-lg-end">
+                        <button class="btn btn-outline-light" type="button" @click="setAllSeats('free')">
+                            <i class="fas fa-eraser"></i> Розблокувати все
+                        </button>
+                        <button class="btn btn-outline-warning" type="button" @click="setAllSeats('blocked')">
+                            <i class="fas fa-ban"></i> Заблокувати все
+                        </button>
+                        <button class="btn btn-primary" type="button" @click="saveHall" :disabled="saving">
+                            <span v-if="saving"><span class="spinner-border spinner-border-sm me-1"></span> Збереження...</span>
+                            <span v-else><i class="fas fa-save"></i> Зберегти схему</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div v-if="!canResize" class="alert alert-warning mt-3 mb-0">
+                <i class="fas fa-exclamation-triangle"></i>
+                Розмір залу заблоковано, бо на сеансі вже є бронювання. Можна лише змінювати статус вільних місць.
+            </div>
+            <div v-if="formError" class="alert alert-danger mt-3 mb-0">
+                <i class="fas fa-exclamation-circle"></i> {{ formError }}</div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-md-3"><div class="stats-card"><div class="stats-label">Загалом</div><div class="stats-value">{{ seats.length }}</div></div></div>
+            <div class="col-md-3"><div class="stats-card"><div class="stats-label">Вільно</div><div class="stats-value">{{ freeSeatsCount }}</div></div></div>
+            <div class="col-md-3"><div class="stats-card"><div class="stats-label">Заблоковано</div><div class="stats-value">{{ blockedSeatsCount }}</div></div></div>
+            <div class="col-md-3"><div class="stats-card"><div class="stats-label">Заброньовано</div><div class="stats-value">{{ bookedSeatsCount }}</div></div></div>
+        </div>
+
+        <div class="screen-display">
+            <i class="fas fa-tv"></i> ЕКРАН
+        </div>
+
+        <div class="legend">
+            <div class="legend-item"><span class="legend-seat spa-seat free"></span><span>Вільно</span></div>
+            <div class="legend-item"><span class="legend-seat spa-seat blocked"></span><span>Заблоковано</span></div>
+            <div class="legend-item"><span class="legend-seat spa-seat booked"></span><span>Заброньовано</span></div>
+        </div>
+
+        <div class="seats-container">
+            <div class="spa-seats-grid">
+                <div v-for="(rowSeats, row) in seatsByRow" :key="row" class="seat-row">
+                    <span class="row-label">{{ row }}</span>
+                    <button
+                        v-for="seat in rowSeats"
+                        :key="seat.id"
+                        type="button"
+                        :class="['spa-seat', seat.status]"
+                        :disabled="seat.status === 'booked'"
+                        @click="toggleSeat(seat)"
+                        :title="seat.status === 'booked' ? 'Місце вже заброньоване' : 'Клікніть, щоб перемкнути статус'"
+                    >
+                        {{ seat.number }}
+                    </button>
+                </div>
+            </div>
+
+            <div class="booking-summary">
+                <h3>Підсумок схеми</h3>
+                <div class="selected-count">{{ layout.rows }} × {{ layout.seats_per_row }}</div>
+                <p class="mb-0 mt-2 text-muted">
+                    Заброньовано: <strong>{{ bookedSeatsCount }}</strong> · Заблоковано: <strong>{{ blockedSeatsCount }}</strong>
+                </p>
+            </div>
         </div>
     </div>
 </div>
@@ -2539,12 +2870,32 @@
             <h1><i class="fas fa-calendar-week"></i> Календар сеансів</h1>
         </div>
 
+        <div class="admin-form-card mb-4" v-if="halls.length">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                <div>
+                    <h4 class="mb-1"><i class="fas fa-door-open"></i> Календар по залах</h4>
+                    <p class="text-muted mb-0">Перемикайте зал, щоб бачити його окреме розкладне вікно.</p>
+                </div>
+                <div class="badge bg-secondary px-3 py-2">Поточний зал: {{ currentHall ? currentHall.name : 'Невідомий' }}</div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <button v-for="hall in halls" :key="hall.id"
+                        type="button"
+                        class="btn"
+                        :class="hall.id === selectedHallId ? 'btn-primary' : 'btn-outline-light'"
+                        @click="switchHall(hall.id)">
+                    <i class="fas fa-couch"></i> {{ hall.name }}
+                </button>
+            </div>
+        </div>
+
         <!-- Admin Navigation -->
         <div class="admin-nav mb-4">
             <router-link to="/admin" class="btn btn-outline-light"><i class="fas fa-chart-bar"></i> Статистика</router-link>
             <router-link to="/admin/films" class="btn btn-outline-light"><i class="fas fa-film"></i> Фільми</router-link>
             <router-link to="/admin/sessions" class="btn btn-outline-light"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
             <router-link to="/admin/calendar" class="btn btn-primary"><i class="fas fa-calendar-week"></i> Календар</router-link>
+            <router-link to="/admin/scanner" class="btn btn-outline-light"><i class="fas fa-qrcode"></i> Сканер</router-link>
         </div>
 
         <!-- Week Navigation -->
@@ -2561,6 +2912,9 @@
                             {{ weekLabel() }}
                         </h4>
                         <p class="text-muted mb-0">{{ weekRange() }}</p>
+                        <p v-if="halls.length" class="text-muted mb-0 mt-1">
+                            <i class="fas fa-door-open"></i> {{ currentHall ? currentHall.name : 'Невідомий зал' }}
+                        </p>
                         <button v-if="weekOffset !== 0" @click="currentWeek" class="btn btn-sm btn-outline-light mt-2">
                             <i class="fas fa-home"></i> Повернутись до поточного
                         </button>
@@ -2692,6 +3046,17 @@
                             </div>
                         </div>
                         <div class="mb-3">
+                            <label class="form-label"><i class="fas fa-door-open"></i> Зал</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-door-open"></i></span>
+                                <select class="form-select" v-model="createForm.hall_id">
+                                    <option value="">Оберіть зал...</option>
+                                    <option v-for="hall in halls" :key="hall.id" :value="hall.id">{{ hall.name }} ({{ hall.rows }}×{{ hall.seats_per_row }})</option>
+                                </select>
+                            </div>
+                            <small class="text-muted d-block mt-1">За замовчуванням підставляється поточний зал календаря.</small>
+                        </div>
+                        <div class="mb-3">
                             <label class="form-label"><i class="fas fa-money-bill-wave"></i> Ціна квитка</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="fas fa-hryvnia-sign"></i></span>
@@ -2709,6 +3074,67 @@
                             <span v-else><i class="fas fa-check"></i> Створити сеанс</span>
                         </button>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endraw %}
+</script>
+
+
+<!-- ========================================= -->
+<!-- Admin Scanner Template -->
+<!-- ========================================= -->
+<script type="text/x-template" id="admin-scanner-template">
+{% raw %}
+<div class="container">
+    <Breadcrumbs />
+    <div class="page-header">
+        <h1><i class="fas fa-qrcode"></i> Сканер квитків</h1>
+    </div>
+
+    <div class="admin-nav mb-4">
+        <router-link to="/admin" class="btn btn-outline-light"><i class="fas fa-chart-bar"></i> Статистика</router-link>
+        <router-link to="/admin/films" class="btn btn-outline-light"><i class="fas fa-film"></i> Фільми</router-link>
+        <router-link to="/admin/sessions" class="btn btn-outline-light"><i class="fas fa-ticket-alt"></i> Сеанси</router-link>
+        <router-link to="/admin/calendar" class="btn btn-outline-light"><i class="fas fa-calendar-week"></i> Календар</router-link>
+        <router-link to="/admin/scanner" class="btn btn-primary"><i class="fas fa-qrcode"></i> Сканер</router-link>
+    </div>
+
+    <div class="admin-form-card">
+        <h4><i class="fas fa-barcode"></i> Перевірка квитка</h4>
+        <p class="text-muted mb-3">
+            Вставте токен з QR-коду або повний payload у форматі <strong>cinemabook:ticket:...</strong>
+        </p>
+
+        <div v-if="scanError" class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i> {{ scanError }}
+        </div>
+
+        <form @submit.prevent="scanTicket">
+            <div class="input-group">
+                <input v-model="tokenInput" class="form-control" placeholder="cinemabook:ticket:..." autocomplete="off">
+                <button type="submit" class="btn btn-primary" :disabled="scanning">
+                    <span v-if="scanning"><span class="spinner-border spinner-border-sm me-1"></span> Перевірка...</span>
+                    <span v-else><i class="fas fa-check-circle"></i> Перевірити</span>
+                </button>
+            </div>
+        </form>
+
+        <div v-if="scanResult" class="session-row mt-3">
+            <div>
+                <h6 class="mb-1">
+                    <i class="fas fa-film"></i> {{ scanResult.film_title }}
+                    <span class="badge bg-success ms-2" v-if="scanResult.status === 'used'">Використано</span>
+                </h6>
+                <div class="small text-muted">
+                    <i class="fas fa-clock"></i> {{ scanResult.session_time }}
+                    &nbsp;|&nbsp; <i class="fas fa-couch"></i> Ряд {{ scanResult.seat_row }}, Місце {{ scanResult.seat_number }}
+                    <span v-if="scanResult.user_name">&nbsp;|&nbsp; <i class="fas fa-user"></i> {{ scanResult.user_name }}</span>
+                </div>
+                <div class="small text-muted mt-1" v-if="scanResult.scanned_at">
+                    <i class="fas fa-check"></i> Скановано: {{ scanResult.scanned_at }}
                 </div>
             </div>
         </div>
@@ -2753,5 +3179,5 @@
 {% block extra_scripts %}
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 <script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>
-<script src="{{ url_for('static', filename='js/spa-app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/spa-app.js') }}?v=20260504"></script>
 {% endblock %}

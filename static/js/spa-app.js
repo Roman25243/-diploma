@@ -1,11 +1,10 @@
-/**
+﻿/**
  * Vue 3 SPA with Vue Router 4
  * CinemaBook Single Page Application
  */
 const { createApp } = Vue;
 const { createRouter, createWebHistory } = VueRouter;
 
-// === Shared Utilities ===
 
 function showAlert(message, type = 'info') {
     const alertDiv = document.createElement('div');
@@ -16,8 +15,81 @@ function showAlert(message, type = 'info') {
     setTimeout(() => alertDiv.remove(), 4000);
 }
 
+const clientCache = {
+    /**
+     * РћС‚СЂРёРјР°С‚Рё РґР°РЅС– Р· РєРµС€Сѓ Р°Р±Рѕ Р·Р°РІР°РЅС‚Р°Р¶РёС‚Рё Р· СЃРµСЂРІРµСЂР°
+     * @param {string} cacheKey - РєР»СЋС‡ РґР»СЏ localStorage
+     * @param {function} fetchFn - С„СѓРЅРєС†С–СЏ РґР»СЏ Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ РґР°РЅРёС… Р· СЃРµСЂРІРµСЂР°
+     * @param {number} ttlSeconds - С‡Р°СЃ РєРµС€СѓРІР°РЅРЅСЏ РІ СЃРµРєСѓРЅРґР°С… (Р·Р° Р·Р°РјРѕРІС‡СѓРІР°РЅРЅСЏРј 30 С…РІРёР»РёРЅ)
+     */
+    async getOrFetch(cacheKey, fetchFn, ttlSeconds = 1800) {
+        const cached = this.getFromCache(cacheKey);
+        if (cached) {
+            console.log(`вњ… Cache hit: ${cacheKey}`);
+            return cached;
+        }
+        
+        console.log(`рџ“Ґ Cache miss: ${cacheKey}, fetching from server`);
+        const data = await fetchFn();
+        this.setCache(cacheKey, data, ttlSeconds);
+        return data;
+    },
+    
+    /**
+     * РћС‚СЂРёРјР°С‚Рё РґР°РЅС– Р· localStorage
+     */
+    getFromCache(cacheKey) {
+        try {
+            const item = localStorage.getItem(cacheKey);
+            if (!item) return null;
+            
+            const { data, expiry } = JSON.parse(item);
+            
+            if (Date.now() > expiry) {
+                localStorage.removeItem(cacheKey);
+                return null;
+            }
+            
+            return data;
+        } catch (e) {
+            console.warn(`Cache read error for ${cacheKey}:`, e);
+            return null;
+        }
+    },
+    
+    /**
+     * Р—Р±РµСЂРµРіС‚Рё РґР°РЅС– РІ localStorage Р· TTL
+     */
+    setCache(cacheKey, data, ttlSeconds = 1800) {
+        try {
+            const expiry = Date.now() + (ttlSeconds * 1000);
+            localStorage.setItem(cacheKey, JSON.stringify({ data, expiry }));
+            console.log(`рџ’ѕ Cached: ${cacheKey} (TTL: ${ttlSeconds}s)`);
+        } catch (e) {
+            console.warn(`Cache write error for ${cacheKey}:`, e);
+        }
+    },
+    
+    /**
+     * РћС‡РёСЃС‚РёС‚Рё РєРѕРЅРєСЂРµС‚РЅРёР№ РєРµС€
+     */
+    clearCache(cacheKey) {
+        localStorage.removeItem(cacheKey);
+        console.log(`рџ—‘пёЏ  Cache cleared: ${cacheKey}`);
+    },
+    
+    /**
+     * РћС‡РёСЃС‚РёС‚Рё РІСЃС– CinemaBook РєРµС€С–
+     */
+    clearAllCache() {
+        const keys = Object.keys(localStorage).filter(k => k.startsWith('cinema_'));
+        keys.forEach(k => localStorage.removeItem(k));
+        console.log(`рџ—‘пёЏ  All caches cleared (${keys.length} entries)`);
+    }
+};
+
 function starsDisplay(rating) {
-    return '⭐'.repeat(Math.round(rating));
+    return 'в­ђ'.repeat(Math.round(rating));
 }
 
 function formatDate(isoString) {
@@ -44,7 +116,14 @@ function formatDateTime(dateString) {
     });
 }
 
-// === Auth State ===
+function formatMoney(value) {
+    const num = Number(value || 0);
+    return num.toLocaleString('uk-UA', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    });
+}
+
 const authState = {
     authenticated: false,
     user: null,
@@ -89,9 +168,6 @@ const authState = {
 };
 
 
-// ===========================
-// === Films Page Component ===
-// ===========================
 const FilmsPage = {
     template: '#films-template',
     data() {
@@ -108,10 +184,10 @@ const FilmsPage = {
     computed: {
         resultsText() {
             const count = this.films.length;
-            if (count === 0) return 'Нічого не знайдено';
-            if (count === 1) return '1 фільм';
-            if (count < 5) return `${count} фільми`;
-            return `${count} фільмів`;
+            if (count === 0) return 'РќС–С‡РѕРіРѕ РЅРµ Р·РЅР°Р№РґРµРЅРѕ';
+            if (count === 1) return '1 С„С–Р»СЊРј';
+            if (count < 5) return `${count} С„С–Р»СЊРјРё`;
+            return `${count} С„С–Р»СЊРјС–РІ`;
         }
     },
     watch: {
@@ -134,13 +210,32 @@ const FilmsPage = {
                 const response = await fetch(`/api/films?${params}`);
                 const data = await response.json();
                 this.films = data.films;
+                
                 if (data.genres && data.genres.length > 0) {
                     this.genres = data.genres;
+                    clientCache.setCache('cinema_genres', data.genres, 3600);
                 }
             } catch (err) {
                 this.error = err.message;
             } finally {
                 this.loading = false;
+            }
+        },
+        async loadGenres() {
+            try {
+                const genres = await clientCache.getOrFetch(
+                    'cinema_genres',
+                    () => fetch('/api/genres').then(r => {
+                        if (!r.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                        return r.json().then(d => d.genres);
+                    }),
+                    3600  // 1 РіРѕРґРёРЅР°
+                );
+                if (genres && genres.length > 0) {
+                    this.genres = genres;
+                }
+            } catch (err) {
+                console.error('Load genres error:', err);
             }
         },
         clearFilters() {
@@ -165,7 +260,7 @@ const FilmsPage = {
         },
         starsDisplay,
         truncate(text, length) {
-            if (!text) return 'Опис відсутній.';
+            if (!text) return 'РћРїРёСЃ РІС–РґСЃСѓС‚РЅС–Р№.';
             return text.length > length ? text.substring(0, length) + '...' : text;
         }
     },
@@ -173,14 +268,12 @@ const FilmsPage = {
         const params = new URLSearchParams(window.location.search);
         this.searchQuery = params.get('q') || '';
         this.selectedGenre = params.get('genre') || '';
+        this.loadGenres();  // Р—Р°РІР°РЅС‚Р°Р¶РёС‚Рё Р¶Р°РЅСЂРё Р· РєРµС€Сѓ Р°Р±Рѕ СЃРµСЂРІРµСЂР°
         this.fetchFilms();
     }
 };
 
 
-// =================================
-// === Film Detail Page Component ===
-// =================================
 const FilmDetailPage = {
     template: '#film-detail-template',
     data() {
@@ -223,7 +316,7 @@ const FilmDetailPage = {
             try {
                 this.loading = true;
                 const response = await fetch(`/api/films/${this.filmId}`);
-                if (!response.ok) throw new Error('Фільм не знайдено');
+                if (!response.ok) throw new Error('Р¤С–Р»СЊРј РЅРµ Р·РЅР°Р№РґРµРЅРѕ');
                 const data = await response.json();
                 this.film = data.film;
                 this.sessions = data.sessions;
@@ -274,15 +367,15 @@ const FilmDetailPage = {
                 this.film.average_rating = data.new_average_rating;
                 this.film.review_count = this.reviews.length;
                 this.reviewForm = { rating: 5, comment: '' };
-                showAlert('Відгук опубліковано!', 'success');
+                showAlert('Р’С–РґРіСѓРє РѕРїСѓР±Р»С–РєРѕРІР°РЅРѕ!', 'success');
             } catch (err) {
-                showAlert('Помилка при відправці відгуку', 'danger');
+                showAlert('РџРѕРјРёР»РєР° РїСЂРё РІС–РґРїСЂР°РІС†С– РІС–РґРіСѓРєСѓ', 'danger');
             } finally {
                 this.submittingReview = false;
             }
         },
         async deleteReview(reviewId) {
-            if (!confirm('Ви впевнені?')) return;
+            if (!confirm('Р’Рё РІРїРµРІРЅРµРЅС–?')) return;
             try {
                 const response = await fetch(`/api/reviews/${reviewId}`, { method: 'DELETE' });
                 const data = await response.json();
@@ -293,16 +386,17 @@ const FilmDetailPage = {
                     if (this.userReview && this.userReview.id === reviewId) {
                         this.userReview = null;
                     }
-                    showAlert('Відгук видалено', 'success');
+                    showAlert('Р’С–РґРіСѓРє РІРёРґР°Р»РµРЅРѕ', 'success');
                 }
             } catch (err) {
-                showAlert('Помилка при видаленні', 'danger');
+                showAlert('РџРѕРјРёР»РєР° РїСЂРё РІРёРґР°Р»РµРЅРЅС–', 'danger');
             }
         },
         canDeleteReview(review) {
             return this.currentUserId === review.user_id || this.isAdmin;
         },
         formatDate,
+        formatMoney,
         starsDisplay,
         getEmbedUrl(trailerUrl) {
             if (!trailerUrl) return '';
@@ -321,9 +415,6 @@ const FilmDetailPage = {
 };
 
 
-// ==============================
-// === Profile Page Component ===
-// ==============================
 const ProfilePage = {
     template: '#profile-template',
     data() {
@@ -356,7 +447,7 @@ const ProfilePage = {
             try {
                 this.loading = true;
                 const response = await fetch('/api/user/profile');
-                if (!response.ok) throw new Error('Помилка завантаження');
+                if (!response.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
                 const data = await response.json();
                 this.user = data.user;
                 this.bookings = data.bookings;
@@ -367,19 +458,19 @@ const ProfilePage = {
             }
         },
         async cancelBooking(bookingId) {
-            if (!confirm('Ви впевнені, що хочете скасувати бронювання?')) return;
+            if (!confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ СЃРєР°СЃСѓРІР°С‚Рё Р±СЂРѕРЅСЋРІР°РЅРЅСЏ?')) return;
             try {
                 const response = await fetch(`/api/bookings/${bookingId}/cancel`, { method: 'POST' });
                 const data = await response.json();
                 if (data.success) {
                     const booking = this.bookings.find(b => b.id === bookingId);
                     if (booking) booking.is_cancelled = true;
-                    showAlert('Бронювання скасовано', 'success');
+                    showAlert('Р‘СЂРѕРЅСЋРІР°РЅРЅСЏ СЃРєР°СЃРѕРІР°РЅРѕ', 'success');
                 } else {
                     showAlert(data.error, 'danger');
                 }
             } catch (err) {
-                showAlert('Помилка скасування', 'danger');
+                showAlert('РџРѕРјРёР»РєР° СЃРєР°СЃСѓРІР°РЅРЅСЏ', 'danger');
             }
         },
         setFilter(type) {
@@ -395,9 +486,6 @@ const ProfilePage = {
 };
 
 
-// ================================
-// === Favorites Page Component ===
-// ================================
 const FavoritesPage = {
     template: '#favorites-template',
     data() {
@@ -411,8 +499,9 @@ const FavoritesPage = {
         async loadFavorites() {
             try {
                 this.loading = true;
+                this.error = null;
                 const response = await fetch('/api/favorites');
-                if (!response.ok) throw new Error('Помилка завантаження');
+                if (!response.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
                 const data = await response.json();
                 this.favorites = data.favorites;
             } catch (err) {
@@ -422,16 +511,16 @@ const FavoritesPage = {
             }
         },
         async removeFavorite(filmId) {
-            if (!confirm('Видалити з обраних?')) return;
+            if (!confirm('Р’РёРґР°Р»РёС‚Рё Р· РѕР±СЂР°РЅРёС…?')) return;
             try {
                 const response = await fetch(`/api/favorites/${filmId}`, { method: 'DELETE' });
                 const data = await response.json();
                 if (data.success) {
                     this.favorites = this.favorites.filter(f => f.id != filmId);
-                    showAlert('Видалено з обраних', 'success');
+                    showAlert('Р’РёРґР°Р»РµРЅРѕ Р· РѕР±СЂР°РЅРёС…', 'success');
                 }
             } catch (err) {
-                showAlert('Помилка видалення', 'danger');
+                showAlert('РџРѕРјРёР»РєР° РІРёРґР°Р»РµРЅРЅСЏ', 'danger');
             }
         },
         goToFilm(filmId) {
@@ -446,9 +535,6 @@ const FavoritesPage = {
 };
 
 
-// ============================
-// === Login Page Component ===
-// ============================
 const LoginPage = {
     template: '#login-template',
     data() {
@@ -465,8 +551,8 @@ const LoginPage = {
             this.errors = {};
             this.generalError = '';
 
-            if (!this.email.trim()) this.errors.email = 'Введіть email';
-            if (!this.password) this.errors.password = 'Введіть пароль';
+            if (!this.email.trim()) this.errors.email = 'Р’РІРµРґС–С‚СЊ email';
+            if (!this.password) this.errors.password = 'Р’РІРµРґС–С‚СЊ РїР°СЂРѕР»СЊ';
             if (Object.keys(this.errors).length) return;
 
             this.submitting = true;
@@ -483,10 +569,10 @@ const LoginPage = {
                     const next = this.$route.query.next || '/films';
                     this.$router.push(next);
                 } else {
-                    this.generalError = data.error || 'Помилка входу';
+                    this.generalError = data.error || 'РџРѕРјРёР»РєР° РІС…РѕРґСѓ';
                 }
             } catch (e) {
-                this.generalError = 'Помилка з\'єднання з сервером';
+                this.generalError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ Р· СЃРµСЂРІРµСЂРѕРј';
             } finally {
                 this.submitting = false;
             }
@@ -495,9 +581,6 @@ const LoginPage = {
 };
 
 
-// ===============================
-// === Register Page Component ===
-// ===============================
 const RegisterPage = {
     template: '#register-template',
     data() {
@@ -516,11 +599,11 @@ const RegisterPage = {
             this.generalError = '';
 
             if (!this.name.trim() || this.name.trim().length < 2) {
-                this.errors.name = "Ім'я має бути мінімум 2 символи";
+                this.errors.name = "Р†Рј'СЏ РјР°С” Р±СѓС‚Рё РјС–РЅС–РјСѓРј 2 СЃРёРјРІРѕР»Рё";
             }
-            if (!this.email.trim()) this.errors.email = 'Введіть email';
+            if (!this.email.trim()) this.errors.email = 'Р’РІРµРґС–С‚СЊ email';
             if (!this.password || this.password.length < 6) {
-                this.errors.password = 'Пароль має бути мінімум 6 символів';
+                this.errors.password = 'РџР°СЂРѕР»СЊ РјР°С” Р±СѓС‚Рё РјС–РЅС–РјСѓРј 6 СЃРёРјРІРѕР»С–РІ';
             }
             if (Object.keys(this.errors).length) return;
 
@@ -543,10 +626,10 @@ const RegisterPage = {
                 } else if (data.errors) {
                     this.errors = data.errors;
                 } else {
-                    this.generalError = data.error || 'Помилка реєстрації';
+                    this.generalError = data.error || 'РџРѕРјРёР»РєР° СЂРµС”СЃС‚СЂР°С†С–С—';
                 }
             } catch (e) {
-                this.generalError = 'Помилка з\'єднання з сервером';
+                this.generalError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ Р· СЃРµСЂРІРµСЂРѕРј';
             } finally {
                 this.submitting = false;
             }
@@ -555,9 +638,6 @@ const RegisterPage = {
 };
 
 
-// ============================
-// === Seats Page Component ===
-// ============================
 const SeatsPage = {
     template: '#seats-template',
     data() {
@@ -587,7 +667,8 @@ const SeatsPage = {
                 }, {});
         },
         totalPrice() {
-            return this.selectedSeats.length * (this.session?.price || 0);
+            const total = this.selectedSeats.length * (this.session?.price || 0);
+            return Math.round(total * 100) / 100;
         },
         canSelectMore() {
             return this.selectedSeats.length + this.userBookings.count < 5;
@@ -601,12 +682,15 @@ const SeatsPage = {
             try {
                 this.loading = true;
                 this.error = null;
-                const response = await fetch(`/api/sessions/${this.sessionId}/seats`);
-                if (!response.ok) throw new Error('Помилка завантаження даних');
+
+                const response = await fetch(`/api/sessions/${this.sessionId}/seats`, { cache: 'no-store' });
+                if (!response.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ РґР°РЅРёС…');
                 const data = await response.json();
+                
                 this.session = data.session;
                 this.seats = data.seats;
                 this.userBookings = data.user_bookings;
+                this.selectedSeats = [];
             } catch (err) {
                 this.error = err.message;
             } finally {
@@ -614,7 +698,7 @@ const SeatsPage = {
             }
         },
         toggleSeat(seat) {
-            if (seat.status === 'booked') return;
+            if (seat.status === 'booked' || seat.status === 'blocked') return;
             const index = this.selectedSeats.indexOf(seat.id);
             if (index > -1) {
                 this.selectedSeats.splice(index, 1);
@@ -622,7 +706,7 @@ const SeatsPage = {
                 if (this.canSelectMore) {
                     this.selectedSeats.push(seat.id);
                 } else {
-                    showAlert('Максимум 5 місць на один сеанс!', 'warning');
+                    showAlert('РњР°РєСЃРёРјСѓРј 5 РјС–СЃС†СЊ РЅР° РѕРґРёРЅ СЃРµР°РЅСЃ!', 'warning');
                 }
             }
         },
@@ -631,12 +715,13 @@ const SeatsPage = {
         },
         getSeatClass(seat) {
             if (seat.status === 'booked') return 'booked';
+            if (seat.status === 'blocked') return 'blocked';
             if (this.isSeatSelected(seat)) return 'selected';
             return 'free';
         },
         async bookSeats() {
             if (!this.hasSelection) {
-                showAlert('Оберіть хоча б одне місце', 'warning');
+                showAlert('РћР±РµСЂС–С‚СЊ С…РѕС‡Р° Р± РѕРґРЅРµ РјС–СЃС†Рµ', 'warning');
                 return;
             }
             try {
@@ -647,33 +732,49 @@ const SeatsPage = {
                     body: JSON.stringify({ seat_ids: this.selectedSeats })
                 });
                 const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Помилка бронювання');
-                showAlert(data.message, 'success');
+                if (!response.ok) throw new Error(data.error || 'РџРѕРјРёР»РєР° Р±СЂРѕРЅСЋРІР°РЅРЅСЏ');
+
+                const bookingIds = Array.isArray(data.booking_ids) ? data.booking_ids : [];
+                if (bookingIds.length === 0) {
+                    showAlert('Р‘СЂРѕРЅСЋРІР°РЅРЅСЏ СЃС‚РІРѕСЂРµРЅРѕ, Р°Р»Рµ РЅРµ РІРґР°Р»РѕСЃСЏ РїС–РґРіРѕС‚СѓРІР°С‚Рё РѕРїР»Р°С‚Сѓ.', 'warning');
+                    setTimeout(() => this.$router.push({ name: 'profile' }), 1500);
+                    return;
+                }
+
+                const paymentResponse = await fetch('/api/payments/create-checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ booking_ids: bookingIds })
+                });
+                const paymentData = await paymentResponse.json();
+                if (!paymentResponse.ok || !paymentData?.payment?.checkout_url) {
+                    throw new Error(paymentData.error || 'РќРµ РІРґР°Р»РѕСЃСЏ СЃС‚РІРѕСЂРёС‚Рё РїР»Р°С‚С–Р¶');
+                }
+
+                showAlert('Р‘СЂРѕРЅСЋРІР°РЅРЅСЏ СЃС‚РІРѕСЂРµРЅРѕ. РџРµСЂРµС…РѕРґРёРјРѕ РґРѕ РѕРїР»Р°С‚Рё...', 'success');
                 setTimeout(() => {
-                    this.$router.push({ name: 'profile' });
-                }, 2000);
+                    window.location.href = paymentData.payment.checkout_url;
+                }, 700);
             } catch (err) {
                 showAlert(err.message, 'danger');
             } finally {
                 this.booking = false;
             }
         },
-        formatDateTime
+        formatDateTime,
+        formatMoney
     },
     mounted() {
         this.sessionId = this.$route.params.sessionId;
         if (this.sessionId) {
             this.loadSeats();
         } else {
-            this.error = 'Session ID не знайдено';
+            this.error = 'Session ID РЅРµ Р·РЅР°Р№РґРµРЅРѕ';
         }
     }
 };
 
 
-// =============================
-// === Landing Page Component ===
-// =============================
 const LandingPage = {
     template: '#landing-template',
     data() {
@@ -687,9 +788,16 @@ const LandingPage = {
         async loadPopularFilms() {
             try {
                 this.loading = true;
-                const res = await fetch('/api/films/popular');
-                if (!res.ok) throw new Error('Помилка завантаження');
-                const data = await res.json();
+                
+                const data = await clientCache.getOrFetch(
+                    'cinema_popular_films',
+                    () => fetch('/api/films/popular').then(r => {
+                        if (!r.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                        return r.json();
+                    }),
+                    3600  // 1 РіРѕРґРёРЅР°
+                );
+                
                 this.popularFilms = data.films || [];
             } catch (e) {
                 this.error = e.message;
@@ -707,7 +815,7 @@ const LandingPage = {
             }
         },
         starsDisplay(rating) {
-            return '⭐'.repeat(Math.round(rating));
+            return 'в­ђ'.repeat(Math.round(rating));
         },
         async toggleFavorite(film) {
             if (!authState.authenticated) {
@@ -715,16 +823,16 @@ const LandingPage = {
                 return;
             }
             try {
-                const res = await fetch(`/api/favorites/${film.id}/toggle`, { method: 'POST' });
+                const method = film.is_favorite ? 'DELETE' : 'POST';
+                const res = await fetch(`/api/favorites/${film.id}`, { method });
                 const data = await res.json();
                 if (data.success) {
-                    film.is_favorited = data.is_favorited;
-                    showAlert(data.message, 'success');
+                    film.is_favorite = data.action === 'added';
                 } else {
                     showAlert(data.error, 'danger');
                 }
             } catch (e) {
-                showAlert('Помилка з\'єднання', 'danger');
+                showAlert('РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ', 'danger');
             }
         }
     },
@@ -734,41 +842,162 @@ const LandingPage = {
 };
 
 
-// ==========================================
-// === Admin Dashboard Page Component ===
-// ==========================================
 const AdminDashboardPage = {
     template: '#admin-dashboard-template',
     data() {
         return {
             stats: null,
+            occupancyData: null,
+            revenueData: null,
             loading: true,
-            error: null
+            error: null,
+            selectedHallId: null,
+            halls: [],
+            occupancyChart: null,
+            revenueChart: null
         };
     },
     methods: {
         async loadStats() {
             try {
                 this.loading = true;
-                const res = await fetch('/api/admin/stats');
-                if (!res.ok) throw new Error('Помилка завантаження');
-                this.stats = await res.json();
+                
+                const statsRes = await fetch('/api/admin/stats');
+                if (!statsRes.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ СЃС‚Р°С‚РёСЃС‚РёРєРё');
+                this.stats = await statsRes.json();
+                
+                if (this.stats.halls_stats && this.stats.halls_stats.length > 0) {
+                    this.halls = this.stats.halls_stats;
+                    this.selectedHallId = this.halls[0].hall_id;
+                }
+                
+                const occupancyRes = await fetch('/api/admin/stats/occupancy');
+                const revenueRes = await fetch('/api/admin/stats/revenue');
+                
+                if (!occupancyRes.ok) {
+                    console.error('Occupancy error:', occupancyRes.status, occupancyRes.statusText);
+                } else {
+                    this.occupancyData = await occupancyRes.json();
+                }
+                
+                if (!revenueRes.ok) {
+                    console.error('Revenue error:', revenueRes.status, revenueRes.statusText);
+                } else {
+                    this.revenueData = await revenueRes.json();
+                }
+                
+                this.$nextTick(() => {
+                    this.renderCharts();
+                });
+
+                    setTimeout(() => {
+                        this.renderCharts();
+                    }, 100);
+                
             } catch (e) {
                 this.error = e.message;
+                console.error('Stats error:', e);
             } finally {
                 this.loading = false;
             }
+        },
+        
+        renderCharts() {
+            const occupancyCanvas = document.getElementById('occupancyChart');
+            const revenueCanvas = document.getElementById('revenueChart');
+            
+            if (!this.occupancyData) {
+                return;
+            }
+            
+            if (!occupancyCanvas) {
+                return;
+            }
+            
+            if (this.occupancyChart) {
+                this.occupancyChart.destroy();
+            }
+            
+            this.occupancyChart = new Chart(occupancyCanvas, {
+                type: 'bar',
+                data: {
+                    labels: this.occupancyData.labels || [],
+                    datasets: [{
+                        label: 'РћРєСѓРїРѕРІР°РЅС–СЃС‚СЊ (%)',
+                        data: this.occupancyData.occupancy || [],
+                        backgroundColor: 'rgba(139, 92, 246, 0.8)',
+                        borderColor: 'rgba(139, 92, 246, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (context) => `${context.parsed.x.toFixed(1)}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { max: 100 }
+                    }
+                }
+            });
+            
+            if (this.revenueData && revenueCanvas) {
+                if (this.revenueChart) {
+                    this.revenueChart.destroy();
+                }
+                
+                this.revenueChart = new Chart(revenueCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: this.revenueData.labels || [],
+                        datasets: [{
+                            label: 'Р’РёСЂСѓС‡РєР° (UAH)',
+                            data: this.revenueData.revenue || [],
+                            backgroundColor: 'rgba(16, 185, 129, 0.8)',
+                            borderColor: 'rgba(16, 185, 129, 1)',
+                            borderWidth: 1,
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => `${context.parsed.x.toFixed(2)} UAH`
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        },
+        
+        switchHall(hallId) {
+            this.selectedHallId = hallId;
         }
     },
     mounted() {
         this.loadStats();
+    },
+    beforeUnmount() {
+        if (this.occupancyChart) this.occupancyChart.destroy();
+        if (this.revenueChart) this.revenueChart.destroy();
     }
 };
 
 
-// =====================================
-// === Admin Films Page Component ===
-// =====================================
 const AdminFilmsPage = {
     template: '#admin-films-template',
     data() {
@@ -794,7 +1023,7 @@ const AdminFilmsPage = {
             try {
                 this.loading = true;
                 const res = await fetch('/api/admin/films');
-                if (!res.ok) throw new Error('Помилка завантаження');
+                if (!res.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
                 const data = await res.json();
                 this.films = data.films;
             } catch (e) {
@@ -835,9 +1064,9 @@ const AdminFilmsPage = {
         },
         async submitForm() {
             this.formError = '';
-            if (!this.form.title.trim()) { this.formError = 'Назва обов\'язкова'; return; }
+            if (!this.form.title.trim()) { this.formError = 'РќР°Р·РІР° РѕР±РѕРІ\'СЏР·РєРѕРІР°'; return; }
             if (!this.form.description.trim() || this.form.description.trim().length < 10) {
-                this.formError = 'Опис мінімум 10 символів'; return;
+                this.formError = 'РћРїРёСЃ РјС–РЅС–РјСѓРј 10 СЃРёРјРІРѕР»С–РІ'; return;
             }
 
             this.submitting = true;
@@ -858,31 +1087,35 @@ const AdminFilmsPage = {
 
                 const res = await fetch(url, { method, body: fd });
                 const data = await res.json();
-                if (!res.ok) { this.formError = data.error || 'Помилка'; return; }
+                if (!res.ok) { this.formError = data.error || 'РџРѕРјРёР»РєР°'; return; }
 
                 showAlert(data.message, 'success');
                 this.showForm = false;
                 this.editingFilm = null;
+                clientCache.clearCache('cinema_popular_films');
+                clientCache.clearCache('cinema_genres');
                 await this.loadFilms();
             } catch (e) {
-                this.formError = 'Помилка з\'єднання';
+                this.formError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ';
             } finally {
                 this.submitting = false;
             }
         },
         async deleteFilm(film) {
-            if (!confirm(`Видалити фільм «${film.title}»?`)) return;
+            if (!confirm(`Р’РёРґР°Р»РёС‚Рё С„С–Р»СЊРј В«${film.title}В»?`)) return;
             try {
                 const res = await fetch(`/api/admin/films/${film.id}`, { method: 'DELETE' });
                 const data = await res.json();
                 if (data.success) {
                     showAlert(data.message, 'success');
                     this.films = this.films.filter(f => f.id !== film.id);
+                    clientCache.clearCache('cinema_popular_films');
+                    clientCache.clearCache('cinema_genres');
                 } else {
                     showAlert(data.error, 'danger');
                 }
             } catch (e) {
-                showAlert('Помилка видалення', 'danger');
+                showAlert('РџРѕРјРёР»РєР° РІРёРґР°Р»РµРЅРЅСЏ', 'danger');
             }
         },
         truncate(text, len) {
@@ -896,21 +1129,23 @@ const AdminFilmsPage = {
 };
 
 
-// ========================================
-// === Admin Sessions Page Component ===
-// ========================================
 const AdminSessionsPage = {
     template: '#admin-sessions-template',
     data() {
         return {
             sessions: [],
             films: [],
+            halls: [],
             loading: true,
             error: null,
             showForm: false,
-            form: { film_id: '', start_time: '', price: '' },
+            form: { film_id: '', hall_id: '', start_time: '', price: '' },
             submitting: false,
             formError: '',
+            hallForm: { name: '', rows: 10, seats_per_row: 12 },
+            editingHallId: null,
+            hallSubmitting: false,
+            hallError: '',
             filter: 'all'
         };
     },
@@ -927,15 +1162,38 @@ const AdminSessionsPage = {
         async loadData() {
             try {
                 this.loading = true;
-                const [sessRes, filmsRes] = await Promise.all([
+                this.error = null;
+
+                const [sessionsResult, filmsResult, hallsResult] = await Promise.allSettled([
                     fetch('/api/admin/sessions'),
-                    fetch('/api/admin/films')
+                    fetch('/api/admin/films'),
+                    fetch('/api/admin/halls')
                 ]);
-                if (!sessRes.ok || !filmsRes.ok) throw new Error('Помилка завантаження');
-                const sessData = await sessRes.json();
-                const filmsData = await filmsRes.json();
-                this.sessions = sessData.sessions;
-                this.films = filmsData.films;
+
+                if (sessionsResult.status === 'fulfilled' && sessionsResult.value.ok) {
+                    const sessData = await sessionsResult.value.json();
+                    this.sessions = sessData.sessions || [];
+                } else {
+                    this.sessions = [];
+                }
+
+                if (filmsResult.status === 'fulfilled' && filmsResult.value.ok) {
+                    const filmsData = await filmsResult.value.json();
+                    this.films = filmsData.films || [];
+                } else {
+                    this.films = [];
+                }
+
+                if (hallsResult.status === 'fulfilled' && hallsResult.value.ok) {
+                    const hallsData = await hallsResult.value.json();
+                    this.halls = hallsData.halls || [];
+                } else {
+                    this.halls = [];
+                }
+
+                if (sessionsResult.status !== 'fulfilled' || !sessionsResult.value.ok || filmsResult.status !== 'fulfilled' || !filmsResult.value.ok || hallsResult.status !== 'fulfilled' || !hallsResult.value.ok) {
+                    this.error = 'РќРµ РІРґР°Р»РѕСЃСЏ РїРѕРІРЅС–СЃС‚СЋ Р·Р°РІР°РЅС‚Р°Р¶РёС‚Рё РґР°РЅС–. Р§Р°СЃС‚РёРЅР° С„РѕСЂРјРё РјРѕР¶Рµ Р±СѓС‚Рё РЅРµРґРѕСЃС‚СѓРїРЅРѕСЋ.';
+                }
             } catch (e) {
                 this.error = e.message;
             } finally {
@@ -943,40 +1201,131 @@ const AdminSessionsPage = {
             }
         },
         openForm() {
-            this.form = { film_id: '', start_time: '', price: '' };
+            this.form = {
+                film_id: '',
+                hall_id: this.halls.length ? this.halls[0].id : '',
+                start_time: '',
+                price: ''
+            };
             this.formError = '';
             this.showForm = true;
         },
+        async createHall() {
+            this.hallError = '';
+            if (!this.hallForm.rows || !this.hallForm.seats_per_row) {
+                this.hallError = 'Р—Р°РїРѕРІРЅС–С‚СЊ РїР°СЂР°РјРµС‚СЂРё Р·Р°Р»Сѓ';
+                return;
+            }
+
+            this.hallSubmitting = true;
+            try {
+                const isEditing = this.editingHallId !== null;
+                const url = isEditing ? `/api/admin/halls/${this.editingHallId}` : '/api/admin/halls';
+                const method = isEditing ? 'PUT' : 'POST';
+                const res = await fetch(url, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: this.hallForm.name,
+                        rows: parseInt(this.hallForm.rows),
+                        seats_per_row: parseInt(this.hallForm.seats_per_row)
+                    })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    this.hallError = data.error || (isEditing ? 'РџРѕРјРёР»РєР° РѕРЅРѕРІР»РµРЅРЅСЏ Р·Р°Р»Сѓ' : 'РџРѕРјРёР»РєР° СЃС‚РІРѕСЂРµРЅРЅСЏ Р·Р°Р»Сѓ');
+                    return;
+                }
+                showAlert(data.message, 'success');
+                if (isEditing) {
+                    const index = this.halls.findIndex(h => h.id === this.editingHallId);
+                    if (index > -1) {
+                        this.halls.splice(index, 1, data.hall);
+                    }
+                    if (this.form.hall_id === data.hall.id) {
+                        this.form.hall_id = data.hall.id;
+                    }
+                } else {
+                    this.halls.unshift(data.hall);
+                    if (!this.form.hall_id) {
+                        this.form.hall_id = data.hall.id;
+                    }
+                }
+                this.hallForm = { name: '', rows: 10, seats_per_row: 12 };
+                this.editingHallId = null;
+            } catch (e) {
+                this.hallError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ';
+            } finally {
+                this.hallSubmitting = false;
+            }
+        },
+        editHall(hall) {
+            this.editingHallId = hall.id;
+            this.hallForm = {
+                name: hall.name || '',
+                rows: hall.rows || 10,
+                seats_per_row: hall.seats_per_row || 12
+            };
+            this.hallError = '';
+        },
+        cancelHallEdit() {
+            this.editingHallId = null;
+            this.hallForm = { name: '', rows: 10, seats_per_row: 12 };
+            this.hallError = '';
+        },
+        async deleteHall(hall) {
+            if (!confirm(`Р’РёРґР°Р»РёС‚Рё Р·Р°Р» "${hall.name}"? Р¦Рµ РЅРµР·РІРѕСЂРѕС‚РЅРѕ.`)) return;
+            try {
+                const res = await fetch(`/api/admin/halls/${hall.id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) {
+                    showAlert(data.error || 'РџРѕРјРёР»РєР° РІРёРґР°Р»РµРЅРЅСЏ Р·Р°Р»Сѓ', 'danger');
+                    return;
+                }
+                showAlert(data.message || 'Р—Р°Р» РІРёРґР°Р»РµРЅРѕ', 'success');
+                this.halls = this.halls.filter(h => h.id !== hall.id);
+                if (this.form.hall_id === hall.id) this.form.hall_id = this.halls.length ? this.halls[0].id : '';
+                if (this.editingHallId === hall.id) {
+                    this.cancelHallEdit();
+                }
+            } catch (e) {
+                showAlert('РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ РїСЂРё РІРёРґР°Р»РµРЅРЅС– Р·Р°Р»Сѓ', 'danger');
+            }
+        },
         async submitForm() {
             this.formError = '';
-            if (!this.form.film_id || !this.form.start_time || !this.form.price) {
-                this.formError = 'Заповніть всі поля'; return;
+            if (!this.form.film_id || !this.form.hall_id || !this.form.start_time || !this.form.price) {
+                this.formError = 'Р—Р°РїРѕРІРЅС–С‚СЊ РІСЃС– РїРѕР»СЏ'; return;
             }
             this.submitting = true;
             try {
                 const payload = {
                     film_id: parseInt(this.form.film_id),
+                    hall_id: parseInt(this.form.hall_id),
                     start_time: this.form.start_time.replace('T', ' '),
                     price: parseFloat(this.form.price)
                 };
                 const res = await fetch('/api/admin/sessions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(this.form)
+                    body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                if (!res.ok) { this.formError = data.error || 'Помилка'; return; }
+                if (!res.ok) { this.formError = data.error || 'РџРѕРјРёР»РєР°'; return; }
                 showAlert(data.message, 'success');
+                if (data.session) {
+                    this.sessions.unshift(data.session);
+                }
                 this.showForm = false;
                 await this.loadData();
             } catch (e) {
-                this.formError = 'Помилка з\'єднання';
+                this.formError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ';
             } finally {
                 this.submitting = false;
             }
         },
         async cancelSession(session) {
-            if (!confirm(`Скасувати сеанс "${session.film_title}" (${session.start_time})?`)) return;
+            if (!confirm(`РЎРєР°СЃСѓРІР°С‚Рё СЃРµР°РЅСЃ "${session.film_title}" (${session.start_time})?`)) return;
             try {
                 const res = await fetch(`/api/admin/sessions/${session.id}/cancel`, { method: 'POST' });
                 const data = await res.json();
@@ -987,7 +1336,7 @@ const AdminSessionsPage = {
                     showAlert(data.error, 'danger');
                 }
             } catch (e) {
-                showAlert('Помилка скасування', 'danger');
+                showAlert('РџРѕРјРёР»РєР° СЃРєР°СЃСѓРІР°РЅРЅСЏ', 'danger');
             }
         },
         formatDateTime
@@ -998,9 +1347,116 @@ const AdminSessionsPage = {
 };
 
 
-// =====================================
-// === Admin Calendar Page Component ===
-// =====================================
+const AdminHallEditorPage = {
+    template: '#admin-hall-editor-template',
+    data() {
+        return {
+            sessionId: null,
+            session: null,
+            seats: [],
+            layout: { rows: 10, seats_per_row: 12 },
+            loading: true,
+            saving: false,
+            error: null,
+            formError: ''
+        };
+    },
+    computed: {
+        seatsByRow() {
+            const grouped = {};
+            this.seats.forEach(seat => {
+                if (!grouped[seat.row]) grouped[seat.row] = [];
+                grouped[seat.row].push(seat);
+            });
+            return Object.keys(grouped)
+                .sort((a, b) => parseInt(a) - parseInt(b))
+                .reduce((acc, row) => {
+                    acc[row] = grouped[row].sort((a, b) => a.number - b.number);
+                    return acc;
+                }, {});
+        },
+        bookedSeatsCount() {
+            return this.seats.filter(seat => seat.status === 'booked').length;
+        },
+        blockedSeatsCount() {
+            return this.seats.filter(seat => seat.status === 'blocked').length;
+        },
+        freeSeatsCount() {
+            return this.seats.filter(seat => seat.status === 'free').length;
+        },
+        canResize() {
+            return !this.session || this.session.can_resize;
+        }
+    },
+    methods: {
+        async loadHall() {
+            try {
+                this.loading = true;
+                this.error = null;
+                const response = await fetch(`/api/admin/sessions/${this.sessionId}/hall`, { cache: 'no-store' });
+                if (!response.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ СЃС…РµРјРё Р·Р°Р»Сѓ');
+                const data = await response.json();
+                this.session = data.session;
+                this.layout = data.layout;
+                this.seats = data.seats;
+            } catch (err) {
+                this.error = err.message;
+            } finally {
+                this.loading = false;
+            }
+        },
+        toggleSeat(seat) {
+            if (seat.status === 'booked') return;
+            seat.status = seat.status === 'blocked' ? 'free' : 'blocked';
+        },
+        setAllSeats(status) {
+            this.seats.forEach(seat => {
+                if (seat.status !== 'booked') {
+                    seat.status = status === 'blocked' ? 'blocked' : 'free';
+                }
+            });
+        },
+        async saveHall() {
+            this.formError = '';
+            this.saving = true;
+            try {
+                const payload = {
+                    rows: this.layout.rows,
+                    seats_per_row: this.layout.seats_per_row,
+                    seats: this.seats.map(seat => ({
+                        row: seat.row,
+                        number: seat.number,
+                        status: seat.status
+                    }))
+                };
+                const response = await fetch(`/api/admin/sessions/${this.sessionId}/hall`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    this.formError = data.error || 'РџРѕРјРёР»РєР° Р·Р±РµСЂРµР¶РµРЅРЅСЏ СЃС…РµРјРё Р·Р°Р»Сѓ';
+                    return;
+                }
+                showAlert(data.message, 'success');
+                await this.loadHall();
+            } catch (err) {
+                this.formError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ Р· СЃРµСЂРІРµСЂРѕРј';
+            } finally {
+                this.saving = false;
+            }
+        },
+        formatDateTime,
+        formatMoney
+    },
+    mounted() {
+        this.sessionId = this.$route.params.sessionId;
+        this.loadHall();
+    }
+};
+
+
 const AdminCalendarPage = {
     template: '#admin-calendar-template',
     data() {
@@ -1009,6 +1465,8 @@ const AdminCalendarPage = {
             timeSlots: [],
             sessionsGrid: {},
             films: [],
+            halls: [],
+            selectedHallId: '',
             weekOffset: 0,
             startOfWeek: '',
             loading: true,
@@ -1021,39 +1479,84 @@ const AdminCalendarPage = {
             },
             createForm: {
                 film_id: '',
+                hall_id: '',
                 price: 150
             },
             submitting: false
         };
     },
+    computed: {
+        currentHall() {
+            return this.halls.find(hall => hall.id === this.selectedHallId) || null;
+        }
+    },
     methods: {
+        syncCalendarUrl() {
+            const params = new URLSearchParams();
+            if (this.weekOffset) params.set('week', this.weekOffset);
+            if (this.selectedHallId) params.set('hall_id', this.selectedHallId);
+            const query = params.toString();
+            const nextUrl = query ? `/app/admin/calendar?${query}` : '/app/admin/calendar';
+            window.history.replaceState({}, '', nextUrl);
+        },
         async loadCalendar() {
             try {
                 this.loading = true;
-                const res = await fetch(`/api/admin/calendar?week=${this.weekOffset}`);
-                if (!res.ok) throw new Error('Помилка завантаження');
-                const data = await res.json();
-                this.weekDays = data.week_days;
-                this.timeSlots = data.time_slots;
-                this.sessionsGrid = data.sessions_grid;
-                this.films = data.films;
-                this.startOfWeek = data.start_of_week;
+                this.error = null;
+                const [calendarResult, hallsResult] = await Promise.allSettled([
+                    fetch(`/api/admin/calendar?week=${this.weekOffset}${this.selectedHallId ? `&hall_id=${this.selectedHallId}` : ''}`),
+                    fetch('/api/admin/halls')
+                ]);
+
+                if (calendarResult.status === 'fulfilled' && calendarResult.value.ok) {
+                    const data = await calendarResult.value.json();
+                    this.weekDays = data.week_days;
+                    this.timeSlots = data.time_slots;
+                    this.sessionsGrid = data.sessions_grid;
+                    this.films = data.films;
+                    this.halls = data.halls || [];
+                    this.selectedHallId = data.selected_hall_id || this.selectedHallId || (this.halls[0] && this.halls[0].id) || '';
+                    this.startOfWeek = data.start_of_week;
+                } else {
+                    throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                }
+
+                if (hallsResult.status === 'fulfilled' && hallsResult.value.ok) {
+                    const hallsData = await hallsResult.value.json();
+                    if (!this.halls.length) {
+                        this.halls = hallsData.halls || [];
+                    }
+                    if (!this.selectedHallId && this.halls.length) {
+                        this.selectedHallId = this.halls[0].id;
+                    }
+                } else {
+                    if (!this.halls.length) this.halls = [];
+                }
+                this.syncCalendarUrl();
             } catch (e) {
                 this.error = e.message;
             } finally {
                 this.loading = false;
             }
         },
+        switchHall(hallId) {
+            this.selectedHallId = hallId;
+            this.syncCalendarUrl();
+            this.loadCalendar();
+        },
         prevWeek() {
             this.weekOffset--;
+            this.syncCalendarUrl();
             this.loadCalendar();
         },
         nextWeek() {
             this.weekOffset++;
+            this.syncCalendarUrl();
             this.loadCalendar();
         },
         currentWeek() {
             this.weekOffset = 0;
+            this.syncCalendarUrl();
             this.loadCalendar();
         },
         getSessionsForSlot(date, time) {
@@ -1068,12 +1571,13 @@ const AdminCalendarPage = {
             });
             this.modalData.time = time;
             this.createForm.film_id = '';
+            this.createForm.hall_id = this.selectedHallId || (this.halls.length ? this.halls[0].id : '');
             this.createForm.price = 150;
             this.showModal = true;
         },
         async createSession() {
-            if (!this.createForm.film_id || !this.createForm.price) {
-                showAlert('Заповніть всі поля', 'danger');
+            if (!this.createForm.film_id || !this.createForm.hall_id || !this.createForm.price) {
+                showAlert('Р—Р°РїРѕРІРЅС–С‚СЊ РІСЃС– РїРѕР»СЏ', 'danger');
                 return;
             }
             this.submitting = true;
@@ -1083,6 +1587,7 @@ const AdminCalendarPage = {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         film_id: parseInt(this.createForm.film_id),
+                        hall_id: parseInt(this.createForm.hall_id),
                         date: this.modalData.date,
                         time: this.modalData.time,
                         price: parseFloat(this.createForm.price)
@@ -1090,21 +1595,21 @@ const AdminCalendarPage = {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    showAlert(data.error || 'Помилка створення', 'danger');
+                    showAlert(data.error || 'РџРѕРјРёР»РєР° СЃС‚РІРѕСЂРµРЅРЅСЏ', 'danger');
                     return;
                 }
                 showAlert(data.message, 'success');
                 this.showModal = false;
                 await this.loadCalendar();
             } catch (e) {
-                showAlert('Помилка з\'єднання', 'danger');
+                showAlert('РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ', 'danger');
             } finally {
                 this.submitting = false;
             }
         },
         async cancelSession(sessionId, event) {
             if (event) event.stopPropagation();
-            if (!confirm('Ви впевнені, що хочете скасувати цей сеанс?')) return;
+            if (!confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ СЃРєР°СЃСѓРІР°С‚Рё С†РµР№ СЃРµР°РЅСЃ?')) return;
             try {
                 const res = await fetch(`/api/admin/sessions/${sessionId}/cancel`, { method: 'POST' });
                 const data = await res.json();
@@ -1115,14 +1620,14 @@ const AdminCalendarPage = {
                     showAlert(data.error, 'danger');
                 }
             } catch (e) {
-                showAlert('Помилка скасування', 'danger');
+                showAlert('РџРѕРјРёР»РєР° СЃРєР°СЃСѓРІР°РЅРЅСЏ', 'danger');
             }
         },
         weekLabel() {
-            if (this.weekOffset === 0) return '📅 Поточний тиждень';
-            if (this.weekOffset === 1) return '📅 Наступний тиждень';
-            if (this.weekOffset > 1) return `📅 +${this.weekOffset} тижнів`;
-            return `📅 ${this.weekOffset} тижнів назад`;
+            if (this.weekOffset === 0) return 'рџ“… РџРѕС‚РѕС‡РЅРёР№ С‚РёР¶РґРµРЅСЊ';
+            if (this.weekOffset === 1) return 'рџ“… РќР°СЃС‚СѓРїРЅРёР№ С‚РёР¶РґРµРЅСЊ';
+            if (this.weekOffset > 1) return `рџ“… +${this.weekOffset} С‚РёР¶РЅС–РІ`;
+            return `рџ“… ${this.weekOffset} С‚РёР¶РЅС–РІ РЅР°Р·Р°Рґ`;
         },
         weekRange() {
             if (!this.startOfWeek) return '';
@@ -1133,14 +1638,80 @@ const AdminCalendarPage = {
         }
     },
     mounted() {
+        const params = new URLSearchParams(window.location.search);
+        const hallParam = params.get('hall_id');
+        if (hallParam) {
+            this.selectedHallId = parseInt(hallParam);
+        }
+        const weekParam = params.get('week');
+        if (weekParam) {
+            this.weekOffset = parseInt(weekParam);
+        }
         this.loadCalendar();
     }
 };
 
 
-// ===========================
-// === Breadcrumbs Component ===
-// ===========================
+const AdminScannerPage = {
+    template: '#admin-scanner-template',
+    data() {
+        return {
+            tokenInput: '',
+            scanning: false,
+            scanResult: null,
+            scanError: null
+        };
+    },
+    methods: {
+        normalizeToken(raw) {
+            const value = (raw || '').trim();
+            if (!value) return '';
+            if (value.startsWith('cinemabook:ticket:')) {
+                return value.split('cinemabook:ticket:', 1)[0] ? value : value.replace('cinemabook:ticket:', '');
+            }
+            return value;
+        },
+        async scanTicket() {
+            this.scanError = null;
+            this.scanResult = null;
+
+            const token = this.tokenInput.trim().startsWith('cinemabook:ticket:')
+                ? this.tokenInput.trim().replace('cinemabook:ticket:', '')
+                : this.tokenInput.trim();
+
+            if (!token) {
+                this.scanError = 'Р’СЃС‚Р°РІС‚Рµ QR-С‚РѕРєРµРЅ Р°Р±Рѕ РїРѕРІРЅРёР№ QR payload';
+                return;
+            }
+
+            this.scanning = true;
+            try {
+                const res = await fetch('/api/admin/tickets/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    this.scanError = data.error || 'РџРѕРјРёР»РєР° РїРµСЂРµРІС–СЂРєРё РєРІРёС‚РєР°';
+                    this.scanResult = data.ticket || null;
+                    return;
+                }
+
+                this.scanResult = data.ticket || null;
+                showAlert(data.message || 'РљРІРёС‚РѕРє РІР°Р»С–РґРЅРёР№', 'success');
+                this.tokenInput = '';
+            } catch (e) {
+                this.scanError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ Р· СЃРµСЂРІРµСЂРѕРј';
+            } finally {
+                this.scanning = false;
+            }
+        }
+    }
+};
+
+
 const Breadcrumbs = {
     template: `
         <div class="breadcrumbs" v-if="items.length > 0">
@@ -1158,33 +1729,38 @@ const Breadcrumbs = {
     computed: {
         items() {
             const route = this.$route;
-            const items = [{ label: 'Головна', path: '/', icon: 'fas fa-home' }];
+            const items = [{ label: 'Р“РѕР»РѕРІРЅР°', path: '/', icon: 'fas fa-home' }];
             
             if (route.name === 'landing') return [];
             if (route.name === 'films') {
-                items.push({ label: 'Фільми', path: '/films', icon: 'fas fa-film' });
+                items.push({ label: 'Р¤С–Р»СЊРјРё', path: '/films', icon: 'fas fa-film' });
             } else if (route.name === 'film-detail') {
-                items.push({ label: 'Фільми', path: '/films', icon: 'fas fa-film' });
-                items.push({ label: 'Деталі фільму', path: route.path });
+                items.push({ label: 'Р¤С–Р»СЊРјРё', path: '/films', icon: 'fas fa-film' });
+                items.push({ label: 'Р”РµС‚Р°Р»С– С„С–Р»СЊРјСѓ', path: route.path });
             } else if (route.name === 'favorites') {
-                items.push({ label: 'Обрані', path: '/favorites', icon: 'fas fa-heart' });
+                items.push({ label: 'РћР±СЂР°РЅС–', path: '/favorites', icon: 'fas fa-heart' });
             } else if (route.name === 'profile') {
-                items.push({ label: 'Профіль', path: '/profile', icon: 'fas fa-user' });
+                items.push({ label: 'РџСЂРѕС„С–Р»СЊ', path: '/profile', icon: 'fas fa-user' });
             } else if (route.name === 'seats') {
-                items.push({ label: 'Фільми', path: '/films', icon: 'fas fa-film' });
-                items.push({ label: 'Вибір місць', path: route.path, icon: 'fas fa-couch' });
+                items.push({ label: 'Р¤С–Р»СЊРјРё', path: '/films', icon: 'fas fa-film' });
+                items.push({ label: 'Р’РёР±С–СЂ РјС–СЃС†СЊ', path: route.path, icon: 'fas fa-couch' });
             } else if (route.name === 'login') {
-                items.push({ label: 'Вхід', path: '/login', icon: 'fas fa-sign-in-alt' });
+                items.push({ label: 'Р’С…С–Рґ', path: '/login', icon: 'fas fa-sign-in-alt' });
             } else if (route.name === 'register') {
-                items.push({ label: 'Реєстрація', path: '/register', icon: 'fas fa-user-plus' });
+                items.push({ label: 'Р РµС”СЃС‚СЂР°С†С–СЏ', path: '/register', icon: 'fas fa-user-plus' });
             } else if (route.name && route.name.startsWith('admin')) {
-                items.push({ label: 'Адмін-панель', path: '/admin', icon: 'fas fa-cog' });
+                items.push({ label: 'РђРґРјС–РЅ-РїР°РЅРµР»СЊ', path: '/admin', icon: 'fas fa-cog' });
                 if (route.name === 'admin-films') {
-                    items.push({ label: 'Фільми', path: '/admin/films', icon: 'fas fa-film' });
+                    items.push({ label: 'Р¤С–Р»СЊРјРё', path: '/admin/films', icon: 'fas fa-film' });
                 } else if (route.name === 'admin-sessions') {
-                    items.push({ label: 'Сеанси', path: '/admin/sessions', icon: 'fas fa-ticket-alt' });
+                    items.push({ label: 'РЎРµР°РЅСЃРё', path: '/admin/sessions', icon: 'fas fa-ticket-alt' });
+                } else if (route.name === 'admin-hall-editor') {
+                    items.push({ label: 'РЎРµР°РЅСЃРё', path: '/admin/sessions', icon: 'fas fa-ticket-alt' });
+                    items.push({ label: 'Р РµРґР°РєС‚РѕСЂ Р·Р°Р»Сѓ', path: route.path, icon: 'fas fa-couch' });
                 } else if (route.name === 'admin-calendar') {
-                    items.push({ label: 'Календар', path: '/admin/calendar', icon: 'fas fa-calendar-week' });
+                    items.push({ label: 'РљР°Р»РµРЅРґР°СЂ', path: '/admin/calendar', icon: 'fas fa-calendar-week' });
+                } else if (route.name === 'admin-scanner') {
+                    items.push({ label: 'РЎРєР°РЅРµСЂ РєРІРёС‚РєС–РІ', path: '/admin/scanner', icon: 'fas fa-qrcode' });
                 }
             }
             
@@ -1194,9 +1770,6 @@ const Breadcrumbs = {
 };
 
 
-// ===========================
-// === Back to Top Component ===
-// ===========================
 const BackToTop = {
     template: `
         <button @click="scrollToTop" class="back-to-top" :class="{ show: isVisible }">
@@ -1225,9 +1798,6 @@ const BackToTop = {
 };
 
 
-// ===========================
-// === Not Found Page Component ===
-// ===========================
 const NotFoundPage = {
     template: '#not-found-template',
     methods: {
@@ -1241,9 +1811,6 @@ const NotFoundPage = {
 };
 
 
-// ==============================
-// === Router Configuration ===
-// ==============================
 const routes = [
     { path: '/', name: 'landing', component: LandingPage },
     { path: '/films', name: 'films', component: FilmsPage },
@@ -1256,7 +1823,9 @@ const routes = [
     { path: '/admin', name: 'admin-dashboard', component: AdminDashboardPage, meta: { requiresAdmin: true } },
     { path: '/admin/films', name: 'admin-films', component: AdminFilmsPage, meta: { requiresAdmin: true } },
     { path: '/admin/sessions', name: 'admin-sessions', component: AdminSessionsPage, meta: { requiresAdmin: true } },
+    { path: '/admin/sessions/:sessionId/hall', name: 'admin-hall-editor', component: AdminHallEditorPage, meta: { requiresAdmin: true } },
     { path: '/admin/calendar', name: 'admin-calendar', component: AdminCalendarPage, meta: { requiresAdmin: true } },
+    { path: '/admin/scanner', name: 'admin-scanner', component: AdminScannerPage, meta: { requiresAdmin: true } },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: NotFoundPage }
 ];
 
@@ -1268,9 +1837,7 @@ const router = createRouter({
     }
 });
 
-// Navigation guard for auth
 router.beforeEach(async (to, from, next) => {
-    // Check auth on first navigation
     if (authState.user === null && !authState._checked) {
         authState._checked = true;
         await authState.check();
@@ -1287,30 +1854,28 @@ router.beforeEach(async (to, from, next) => {
     }
 });
 
-// Dynamic page titles
 router.afterEach((to) => {
     const titles = {
-        'landing': 'CinemaBook - Головна',
-        'films': 'CinemaBook - Афіша',
-        'film-detail': 'CinemaBook - Фільм',
-        'profile': 'CinemaBook - Профіль',
-        'favorites': 'CinemaBook - Обрані',
-        'seats': 'CinemaBook - Вибір місць',
-        'login': 'CinemaBook - Вхід',
-        'register': 'CinemaBook - Реєстрація',
-        'admin-dashboard': 'CinemaBook - Адмін',
-        'admin-films': 'CinemaBook - Керування фільмами',
-        'admin-sessions': 'CinemaBook - Керування сеансами',
-        'admin-calendar': 'CinemaBook - Календар сеансів',
-        'not-found': 'CinemaBook - Сторінку не знайдено'
+        'landing': 'CinemaBook - Р“РѕР»РѕРІРЅР°',
+        'films': 'CinemaBook - РђС„С–С€Р°',
+        'film-detail': 'CinemaBook - Р¤С–Р»СЊРј',
+        'profile': 'CinemaBook - РџСЂРѕС„С–Р»СЊ',
+        'favorites': 'CinemaBook - РћР±СЂР°РЅС–',
+        'seats': 'CinemaBook - Р’РёР±С–СЂ РјС–СЃС†СЊ',
+        'login': 'CinemaBook - Р’С…С–Рґ',
+        'register': 'CinemaBook - Р РµС”СЃС‚СЂР°С†С–СЏ',
+        'admin-dashboard': 'CinemaBook - РђРґРјС–РЅ',
+        'admin-films': 'CinemaBook - РљРµСЂСѓРІР°РЅРЅСЏ С„С–Р»СЊРјР°РјРё',
+        'admin-sessions': 'CinemaBook - РљРµСЂСѓРІР°РЅРЅСЏ СЃРµР°РЅСЃР°РјРё',
+        'admin-hall-editor': 'CinemaBook - Р РµРґР°РєС‚РѕСЂ Р·Р°Р»Сѓ',
+        'admin-calendar': 'CinemaBook - РљР°Р»РµРЅРґР°СЂ СЃРµР°РЅСЃС–РІ',
+        'admin-scanner': 'CinemaBook - РЎРєР°РЅРµСЂ РєРІРёС‚РєС–РІ',
+        'not-found': 'CinemaBook - РЎС‚РѕСЂС–РЅРєСѓ РЅРµ Р·РЅР°Р№РґРµРЅРѕ'
     };
     document.title = titles[to.name] || 'CinemaBook';
 });
 
 
-// =====================
-// === Create App ===
-// =====================
 const app = createApp({});
 app.component('Breadcrumbs', Breadcrumbs);
 app.component('BackToTop', BackToTop);
@@ -1318,11 +1883,7 @@ app.use(router);
 app.mount('#spa-app');
 
 
-// ==========================================
-// === Intercept navbar links for SPA nav ===
-// ==========================================
 document.addEventListener('click', function(e) {
-    // Handle SPA logout button
     const logoutBtn = e.target.closest('#spa-logout-btn');
     if (logoutBtn) {
         e.preventDefault();
@@ -1330,9 +1891,9 @@ document.addEventListener('click', function(e) {
             .then(() => {
                 authState.clear();
                 router.push('/login');
-                showAlert('Вихід виконано', 'success');
+                showAlert('Р’РёС…С–Рґ РІРёРєРѕРЅР°РЅРѕ', 'success');
             })
-            .catch(() => showAlert('Помилка виходу', 'danger'));
+            .catch(() => showAlert('РџРѕРјРёР»РєР° РІРёС…РѕРґСѓ', 'danger'));
         return;
     }
 
@@ -1345,5 +1906,4 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// Initial auth check on load
 authState.check();

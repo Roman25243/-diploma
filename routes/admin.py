@@ -37,6 +37,13 @@ def sessions():
     return redirect('/app/admin/sessions')
 
 
+@admin_bp.route('/sessions/<int:session_id>/hall')
+@admin_required
+def session_hall(session_id):
+    """Редірект на SPA редактор залу"""
+    return redirect(f'/app/admin/sessions/{session_id}/hall')
+
+
 @admin_bp.route('/calendar')
 @admin_required
 def calendar():

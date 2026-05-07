@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+﻿from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required
 from werkzeug.security import generate_password_hash, check_password_hash
 from extensions import db
@@ -10,31 +10,29 @@ auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    """Вхід користувача"""
+    """Р’С…С–Рґ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°"""
     if request.method == 'GET':
         return redirect('/app/login')
     
-    # POST - обробка старої форми (legacy)
     form = LoginForm()
     
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user)
-            flash('Успішний вхід!', 'success')
+            flash('РЈСЃРїС–С€РЅРёР№ РІС…С–Рґ!', 'success')
             return redirect(url_for('main.index'))
-        flash('Невірний email або пароль', 'danger')
+        flash('РќРµРІС–СЂРЅРёР№ email Р°Р±Рѕ РїР°СЂРѕР»СЊ', 'danger')
     
     return render_template('login.html', form=form)
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
-    """Реєстрація нового користувача"""
+    """Р РµС”СЃС‚СЂР°С†С–СЏ РЅРѕРІРѕРіРѕ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°"""
     if request.method == 'GET':
         return redirect('/app/register')
     
-    # POST - обробка старої форми (legacy)
     form = RegistrationForm()
     
     if form.validate_on_submit():
@@ -46,7 +44,7 @@ def register():
         )
         db.session.add(user)
         db.session.commit()
-        flash('Реєстрація успішна! Тепер ви можете увійти.', 'success')
+        flash('Р РµС”СЃС‚СЂР°С†С–СЏ СѓСЃРїС–С€РЅР°! РўРµРїРµСЂ РІРё РјРѕР¶РµС‚Рµ СѓРІС–Р№С‚Рё.', 'success')
         return redirect(url_for('auth.login'))
     
     return render_template('register.html', form=form)
@@ -55,6 +53,6 @@ def register():
 @auth_bp.route('/logout')
 @login_required
 def logout():
-    """Вихід користувача"""
+    """Р’РёС…С–Рґ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°"""
     logout_user()
     return redirect(url_for('main.index'))
