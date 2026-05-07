@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+﻿from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
 from extensions import db
 from models import Film, Review
@@ -9,32 +9,31 @@ main_bp = Blueprint('main', __name__)
 
 @main_bp.route('/')
 def index():
-    """Редірект на SPA"""
+    """Р РµРґС–СЂРµРєС‚ РЅР° SPA"""
     return redirect('/app/')
 
 
 @main_bp.route('/films')
 def films():
-    """Редірект на SPA версію"""
+    """Р РµРґС–СЂРµРєС‚ РЅР° SPA РІРµСЂСЃС–СЋ"""
     return redirect('/app/films')
 
 
 @main_bp.route('/film/<int:film_id>')
 def film_detail(film_id):
-    """Редірект на SPA версію"""
+    """Р РµРґС–СЂРµРєС‚ РЅР° SPA РІРµСЂСЃС–СЋ"""
     return redirect(f'/app/film/{film_id}')
 
 
 @main_bp.route('/film/<int:film_id>/review', methods=['POST'])
 @login_required
 def add_review(film_id):
-    """Додавання відгуку на фільм"""
+    """Р”РѕРґР°РІР°РЅРЅСЏ РІС–РґРіСѓРєСѓ РЅР° С„С–Р»СЊРј"""
     film = Film.query.get_or_404(film_id)
     
-    # Перевірка чи користувач вже залишав відгук
     existing_review = Review.query.filter_by(film_id=film_id, user_id=current_user.id).first()
     if existing_review:
-        flash('Ви вже залишили відгук на цей фільм', 'warning')
+        flash('Р’Рё РІР¶Рµ Р·Р°Р»РёС€РёР»Рё РІС–РґРіСѓРє РЅР° С†РµР№ С„С–Р»СЊРј', 'warning')
         return redirect(url_for('main.film_detail', film_id=film_id))
     
     form = ReviewForm()
@@ -47,9 +46,9 @@ def add_review(film_id):
         )
         db.session.add(review)
         db.session.commit()
-        flash('Дякуємо за ваш відгук!', 'success')
+        flash('Р”СЏРєСѓС”РјРѕ Р·Р° РІР°С€ РІС–РґРіСѓРє!', 'success')
     else:
-        flash('Помилка при додаванні відгуку', 'danger')
+        flash('РџРѕРјРёР»РєР° РїСЂРё РґРѕРґР°РІР°РЅРЅС– РІС–РґРіСѓРєСѓ', 'danger')
     
     return redirect(url_for('main.film_detail', film_id=film_id))
 
@@ -57,17 +56,16 @@ def add_review(film_id):
 @main_bp.route('/review/<int:review_id>/delete', methods=['POST'])
 @login_required
 def delete_review(review_id):
-    """Видалення відгуку"""
+    """Р’РёРґР°Р»РµРЅРЅСЏ РІС–РґРіСѓРєСѓ"""
     review = Review.query.get_or_404(review_id)
     
-    # Перевірка що це відгук поточного користувача або адмін
     if review.user_id != current_user.id and not current_user.is_admin:
-        flash('Ви не можете видалити чужий відгук', 'danger')
+        flash('Р’Рё РЅРµ РјРѕР¶РµС‚Рµ РІРёРґР°Р»РёС‚Рё С‡СѓР¶РёР№ РІС–РґРіСѓРє', 'danger')
         return redirect(url_for('main.film_detail', film_id=review.film_id))
     
     film_id = review.film_id
     db.session.delete(review)
     db.session.commit()
-    flash('Відгук видалено', 'success')
+    flash('Р’С–РґРіСѓРє РІРёРґР°Р»РµРЅРѕ', 'success')
     
     return redirect(url_for('main.film_detail', film_id=film_id))
