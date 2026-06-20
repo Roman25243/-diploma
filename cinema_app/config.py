@@ -64,3 +64,10 @@ class Config:
     STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY') or ''
     STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY') or ''
     STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET') or ''
+
+    # Cross-origin frontend support (Cloudflare Pages -> Heroku API)
+    cors_origins = os.environ.get('CORS_ORIGINS') or 'http://localhost:3000,http://localhost:4173,http://127.0.0.1:5500'
+    CORS_ORIGINS = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
+
+    SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE') or 'Lax'
+    SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() in ['true', 'on', '1']

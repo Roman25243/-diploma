@@ -3,7 +3,7 @@ from werkzeug.security import generate_password_hash
 import os
 
 from config import Config
-from extensions import db, login_manager, mail, csrf, cache, compress, migrate
+from extensions import db, login_manager, mail, csrf, cache, compress, migrate, cors
 from models import User
 
 from routes.main import main_bp
@@ -31,6 +31,11 @@ def create_app():
     csrf.init_app(app)
     cache.init_app(app)
     compress.init_app(app)
+    cors.init_app(
+        app,
+        resources={r"/api/*": {"origins": app.config.get('CORS_ORIGINS', [])}},
+        supports_credentials=True,
+    )
     
     app.register_blueprint(main_bp)
     app.register_blueprint(auth_bp)

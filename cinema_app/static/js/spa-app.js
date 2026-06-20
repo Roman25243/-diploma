@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Vue 3 SPA with Vue Router 4
  * CinemaBook Single Page Application
  */
@@ -15,28 +15,49 @@ function showAlert(message, type = 'info') {
     setTimeout(() => alertDiv.remove(), 4000);
 }
 
+const API_BASE_URL = (window.__CINEMABOOK_API_BASE_URL__ || '').replace(/\/$/, '');
+
+function apiUrl(path) {
+    if (!API_BASE_URL) return path;
+    return `${API_BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
+}
+
+function apiFetch(path, options = {}) {
+    const headers = { ...(options.headers || {}) };
+
+    if (options.body && !(options.body instanceof FormData) && !headers['Content-Type'] && !headers['content-type']) {
+        headers['Content-Type'] = 'application/json';
+    }
+
+    return fetch(apiUrl(path), {
+        ...options,
+        headers,
+        credentials: 'include',
+    });
+}
+
 const clientCache = {
     /**
-     * РћС‚СЂРёРјР°С‚Рё РґР°РЅС– Р· РєРµС€Сѓ Р°Р±Рѕ Р·Р°РІР°РЅС‚Р°Р¶РёС‚Рё Р· СЃРµСЂРІРµСЂР°
-     * @param {string} cacheKey - РєР»СЋС‡ РґР»СЏ localStorage
-     * @param {function} fetchFn - С„СѓРЅРєС†С–СЏ РґР»СЏ Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ РґР°РЅРёС… Р· СЃРµСЂРІРµСЂР°
-     * @param {number} ttlSeconds - С‡Р°СЃ РєРµС€СѓРІР°РЅРЅСЏ РІ СЃРµРєСѓРЅРґР°С… (Р·Р° Р·Р°РјРѕРІС‡СѓРІР°РЅРЅСЏРј 30 С…РІРёР»РёРЅ)
+     * Отримати дані з кешу або завантажити з сервера
+     * @param {string} cacheKey - ключ для localStorage
+     * @param {function} fetchFn - функція для завантаження даних з сервера
+     * @param {number} ttlSeconds - час кешування в секундах (за замовчуванням 30 хвилин)
      */
     async getOrFetch(cacheKey, fetchFn, ttlSeconds = 1800) {
         const cached = this.getFromCache(cacheKey);
         if (cached) {
-            console.log(`вњ… Cache hit: ${cacheKey}`);
+            console.log(`✅ Cache hit: ${cacheKey}`);
             return cached;
         }
         
-        console.log(`рџ“Ґ Cache miss: ${cacheKey}, fetching from server`);
+        console.log(`📥 Cache miss: ${cacheKey}, fetching from server`);
         const data = await fetchFn();
         this.setCache(cacheKey, data, ttlSeconds);
         return data;
     },
     
     /**
-     * РћС‚СЂРёРјР°С‚Рё РґР°РЅС– Р· localStorage
+     * Отримати дані з localStorage
      */
     getFromCache(cacheKey) {
         try {
@@ -58,38 +79,38 @@ const clientCache = {
     },
     
     /**
-     * Р—Р±РµСЂРµРіС‚Рё РґР°РЅС– РІ localStorage Р· TTL
+     * Зберегти дані в localStorage з TTL
      */
     setCache(cacheKey, data, ttlSeconds = 1800) {
         try {
             const expiry = Date.now() + (ttlSeconds * 1000);
             localStorage.setItem(cacheKey, JSON.stringify({ data, expiry }));
-            console.log(`рџ’ѕ Cached: ${cacheKey} (TTL: ${ttlSeconds}s)`);
+            console.log(`💾 Cached: ${cacheKey} (TTL: ${ttlSeconds}s)`);
         } catch (e) {
             console.warn(`Cache write error for ${cacheKey}:`, e);
         }
     },
     
     /**
-     * РћС‡РёСЃС‚РёС‚Рё РєРѕРЅРєСЂРµС‚РЅРёР№ РєРµС€
+     * Очистити конкретний кеш
      */
     clearCache(cacheKey) {
         localStorage.removeItem(cacheKey);
-        console.log(`рџ—‘пёЏ  Cache cleared: ${cacheKey}`);
+        console.log(`🗑️  Cache cleared: ${cacheKey}`);
     },
     
     /**
-     * РћС‡РёСЃС‚РёС‚Рё РІСЃС– CinemaBook РєРµС€С–
+     * Очистити всі CinemaBook кеші
      */
     clearAllCache() {
         const keys = Object.keys(localStorage).filter(k => k.startsWith('cinema_'));
         keys.forEach(k => localStorage.removeItem(k));
-        console.log(`рџ—‘пёЏ  All caches cleared (${keys.length} entries)`);
+        console.log(`🗑️  All caches cleared (${keys.length} entries)`);
     }
 };
 
 function starsDisplay(rating) {
-    return 'в­ђ'.repeat(Math.round(rating));
+    return '⭐'.repeat(Math.round(rating));
 }
 
 function formatDate(isoString) {
@@ -130,7 +151,7 @@ const authState = {
 
     async check() {
         try {
-            const res = await fetch('/api/auth/status');
+            const res = await apiFetch('/api/auth/status');
             const data = await res.json();
             this.authenticated = data.authenticated;
             this.user = data.user;
@@ -184,10 +205,10 @@ const FilmsPage = {
     computed: {
         resultsText() {
             const count = this.films.length;
-            if (count === 0) return 'РќС–С‡РѕРіРѕ РЅРµ Р·РЅР°Р№РґРµРЅРѕ';
-            if (count === 1) return '1 С„С–Р»СЊРј';
-            if (count < 5) return `${count} С„С–Р»СЊРјРё`;
-            return `${count} С„С–Р»СЊРјС–РІ`;
+            if (count === 0) return 'Нічого не знайдено';
+            if (count === 1) return '1 фільм';
+            if (count < 5) return `${count} фільми`;
+            return `${count} фільмів`;
         }
     },
     watch: {
@@ -207,7 +228,7 @@ const FilmsPage = {
                 if (this.searchQuery) params.set('q', this.searchQuery);
                 if (this.selectedGenre) params.set('genre', this.selectedGenre);
 
-                const response = await fetch(`/api/films?${params}`);
+                const response = await apiFetch(`/api/films?${params}`);
                 const data = await response.json();
                 this.films = data.films;
                 
@@ -225,11 +246,11 @@ const FilmsPage = {
             try {
                 const genres = await clientCache.getOrFetch(
                     'cinema_genres',
-                    () => fetch('/api/genres').then(r => {
-                        if (!r.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                    () => apiFetch('/api/genres').then(r => {
+                        if (!r.ok) throw new Error('Помилка завантаження');
                         return r.json().then(d => d.genres);
                     }),
-                    3600  // 1 РіРѕРґРёРЅР°
+                    3600  // 1 година
                 );
                 if (genres && genres.length > 0) {
                     this.genres = genres;
@@ -249,7 +270,7 @@ const FilmsPage = {
             event.stopPropagation();
             try {
                 const method = film.is_favorite ? 'DELETE' : 'POST';
-                const response = await fetch(`/api/favorites/${film.id}`, { method });
+                const response = await apiFetch(`/api/favorites/${film.id}`, { method });
                 const data = await response.json();
                 if (data.success) {
                     film.is_favorite = data.action === 'added';
@@ -260,7 +281,7 @@ const FilmsPage = {
         },
         starsDisplay,
         truncate(text, length) {
-            if (!text) return 'РћРїРёСЃ РІС–РґСЃСѓС‚РЅС–Р№.';
+            if (!text) return 'Опис відсутній.';
             return text.length > length ? text.substring(0, length) + '...' : text;
         }
     },
@@ -268,7 +289,7 @@ const FilmsPage = {
         const params = new URLSearchParams(window.location.search);
         this.searchQuery = params.get('q') || '';
         this.selectedGenre = params.get('genre') || '';
-        this.loadGenres();  // Р—Р°РІР°РЅС‚Р°Р¶РёС‚Рё Р¶Р°РЅСЂРё Р· РєРµС€Сѓ Р°Р±Рѕ СЃРµСЂРІРµСЂР°
+        this.loadGenres();  // Завантажити жанри з кешу або сервера
         this.fetchFilms();
     }
 };
@@ -315,8 +336,8 @@ const FilmDetailPage = {
         async loadFilm() {
             try {
                 this.loading = true;
-                const response = await fetch(`/api/films/${this.filmId}`);
-                if (!response.ok) throw new Error('Р¤С–Р»СЊРј РЅРµ Р·РЅР°Р№РґРµРЅРѕ');
+                const response = await apiFetch(`/api/films/${this.filmId}`);
+                if (!response.ok) throw new Error('Фільм не знайдено');
                 const data = await response.json();
                 this.film = data.film;
                 this.sessions = data.sessions;
@@ -339,7 +360,7 @@ const FilmDetailPage = {
             }
             try {
                 const method = this.film.is_favorite ? 'DELETE' : 'POST';
-                const response = await fetch(`/api/favorites/${this.film.id}`, { method });
+                const response = await apiFetch(`/api/favorites/${this.film.id}`, { method });
                 const data = await response.json();
                 if (data.success) {
                     this.film.is_favorite = data.action === 'added';
@@ -352,7 +373,7 @@ const FilmDetailPage = {
             if (this.submittingReview) return;
             this.submittingReview = true;
             try {
-                const response = await fetch(`/api/films/${this.filmId}/reviews`, {
+                const response = await apiFetch(`/api/films/${this.filmId}/reviews`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.reviewForm)
@@ -367,17 +388,17 @@ const FilmDetailPage = {
                 this.film.average_rating = data.new_average_rating;
                 this.film.review_count = this.reviews.length;
                 this.reviewForm = { rating: 5, comment: '' };
-                showAlert('Р’С–РґРіСѓРє РѕРїСѓР±Р»С–РєРѕРІР°РЅРѕ!', 'success');
+                showAlert('Відгук опубліковано!', 'success');
             } catch (err) {
-                showAlert('РџРѕРјРёР»РєР° РїСЂРё РІС–РґРїСЂР°РІС†С– РІС–РґРіСѓРєСѓ', 'danger');
+                showAlert('Помилка при відправці відгуку', 'danger');
             } finally {
                 this.submittingReview = false;
             }
         },
         async deleteReview(reviewId) {
-            if (!confirm('Р’Рё РІРїРµРІРЅРµРЅС–?')) return;
+            if (!confirm('Ви впевнені?')) return;
             try {
-                const response = await fetch(`/api/reviews/${reviewId}`, { method: 'DELETE' });
+                const response = await apiFetch(`/api/reviews/${reviewId}`, { method: 'DELETE' });
                 const data = await response.json();
                 if (data.success) {
                     this.reviews = this.reviews.filter(r => r.id !== reviewId);
@@ -386,10 +407,10 @@ const FilmDetailPage = {
                     if (this.userReview && this.userReview.id === reviewId) {
                         this.userReview = null;
                     }
-                    showAlert('Р’С–РґРіСѓРє РІРёРґР°Р»РµРЅРѕ', 'success');
+                    showAlert('Відгук видалено', 'success');
                 }
             } catch (err) {
-                showAlert('РџРѕРјРёР»РєР° РїСЂРё РІРёРґР°Р»РµРЅРЅС–', 'danger');
+                showAlert('Помилка при видаленні', 'danger');
             }
         },
         canDeleteReview(review) {
@@ -446,8 +467,8 @@ const ProfilePage = {
         async loadProfile() {
             try {
                 this.loading = true;
-                const response = await fetch('/api/user/profile');
-                if (!response.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                const response = await apiFetch('/api/user/profile');
+                if (!response.ok) throw new Error('Помилка завантаження');
                 const data = await response.json();
                 this.user = data.user;
                 this.bookings = data.bookings;
@@ -458,19 +479,19 @@ const ProfilePage = {
             }
         },
         async cancelBooking(bookingId) {
-            if (!confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ СЃРєР°СЃСѓРІР°С‚Рё Р±СЂРѕРЅСЋРІР°РЅРЅСЏ?')) return;
+            if (!confirm('Ви впевнені, що хочете скасувати бронювання?')) return;
             try {
-                const response = await fetch(`/api/bookings/${bookingId}/cancel`, { method: 'POST' });
+                const response = await apiFetch(`/api/bookings/${bookingId}/cancel`, { method: 'POST' });
                 const data = await response.json();
                 if (data.success) {
                     const booking = this.bookings.find(b => b.id === bookingId);
                     if (booking) booking.is_cancelled = true;
-                    showAlert('Р‘СЂРѕРЅСЋРІР°РЅРЅСЏ СЃРєР°СЃРѕРІР°РЅРѕ', 'success');
+                    showAlert('Бронювання скасовано', 'success');
                 } else {
                     showAlert(data.error, 'danger');
                 }
             } catch (err) {
-                showAlert('РџРѕРјРёР»РєР° СЃРєР°СЃСѓРІР°РЅРЅСЏ', 'danger');
+                showAlert('Помилка скасування', 'danger');
             }
         },
         setFilter(type) {
@@ -500,8 +521,8 @@ const FavoritesPage = {
             try {
                 this.loading = true;
                 this.error = null;
-                const response = await fetch('/api/favorites');
-                if (!response.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                const response = await apiFetch('/api/favorites');
+                if (!response.ok) throw new Error('Помилка завантаження');
                 const data = await response.json();
                 this.favorites = data.favorites;
             } catch (err) {
@@ -511,16 +532,16 @@ const FavoritesPage = {
             }
         },
         async removeFavorite(filmId) {
-            if (!confirm('Р’РёРґР°Р»РёС‚Рё Р· РѕР±СЂР°РЅРёС…?')) return;
+            if (!confirm('Видалити з обраних?')) return;
             try {
-                const response = await fetch(`/api/favorites/${filmId}`, { method: 'DELETE' });
+                const response = await apiFetch(`/api/favorites/${filmId}`, { method: 'DELETE' });
                 const data = await response.json();
                 if (data.success) {
                     this.favorites = this.favorites.filter(f => f.id != filmId);
-                    showAlert('Р’РёРґР°Р»РµРЅРѕ Р· РѕР±СЂР°РЅРёС…', 'success');
+                    showAlert('Видалено з обраних', 'success');
                 }
             } catch (err) {
-                showAlert('РџРѕРјРёР»РєР° РІРёРґР°Р»РµРЅРЅСЏ', 'danger');
+                showAlert('Помилка видалення', 'danger');
             }
         },
         goToFilm(filmId) {
@@ -551,13 +572,13 @@ const LoginPage = {
             this.errors = {};
             this.generalError = '';
 
-            if (!this.email.trim()) this.errors.email = 'Р’РІРµРґС–С‚СЊ email';
-            if (!this.password) this.errors.password = 'Р’РІРµРґС–С‚СЊ РїР°СЂРѕР»СЊ';
+            if (!this.email.trim()) this.errors.email = 'Введіть email';
+            if (!this.password) this.errors.password = 'Введіть пароль';
             if (Object.keys(this.errors).length) return;
 
             this.submitting = true;
             try {
-                const res = await fetch('/api/auth/login', {
+                const res = await apiFetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email: this.email.trim(), password: this.password })
@@ -569,10 +590,10 @@ const LoginPage = {
                     const next = this.$route.query.next || '/films';
                     this.$router.push(next);
                 } else {
-                    this.generalError = data.error || 'РџРѕРјРёР»РєР° РІС…РѕРґСѓ';
+                    this.generalError = data.error || 'Помилка входу';
                 }
             } catch (e) {
-                this.generalError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ Р· СЃРµСЂРІРµСЂРѕРј';
+                this.generalError = 'Помилка з\'єднання з сервером';
             } finally {
                 this.submitting = false;
             }
@@ -599,17 +620,17 @@ const RegisterPage = {
             this.generalError = '';
 
             if (!this.name.trim() || this.name.trim().length < 2) {
-                this.errors.name = "Р†Рј'СЏ РјР°С” Р±СѓС‚Рё РјС–РЅС–РјСѓРј 2 СЃРёРјРІРѕР»Рё";
+                this.errors.name = "Ім'я має бути мінімум 2 символи";
             }
-            if (!this.email.trim()) this.errors.email = 'Р’РІРµРґС–С‚СЊ email';
+            if (!this.email.trim()) this.errors.email = 'Введіть email';
             if (!this.password || this.password.length < 6) {
-                this.errors.password = 'РџР°СЂРѕР»СЊ РјР°С” Р±СѓС‚Рё РјС–РЅС–РјСѓРј 6 СЃРёРјРІРѕР»С–РІ';
+                this.errors.password = 'Пароль має бути мінімум 6 символів';
             }
             if (Object.keys(this.errors).length) return;
 
             this.submitting = true;
             try {
-                const res = await fetch('/api/auth/register', {
+                const res = await apiFetch('/api/auth/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -626,10 +647,10 @@ const RegisterPage = {
                 } else if (data.errors) {
                     this.errors = data.errors;
                 } else {
-                    this.generalError = data.error || 'РџРѕРјРёР»РєР° СЂРµС”СЃС‚СЂР°С†С–С—';
+                    this.generalError = data.error || 'Помилка реєстрації';
                 }
             } catch (e) {
-                this.generalError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ Р· СЃРµСЂРІРµСЂРѕРј';
+                this.generalError = 'Помилка з\'єднання з сервером';
             } finally {
                 this.submitting = false;
             }
@@ -683,8 +704,8 @@ const SeatsPage = {
                 this.loading = true;
                 this.error = null;
 
-                const response = await fetch(`/api/sessions/${this.sessionId}/seats`, { cache: 'no-store' });
-                if (!response.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ РґР°РЅРёС…');
+                const response = await apiFetch(`/api/sessions/${this.sessionId}/seats`, { cache: 'no-store' });
+                if (!response.ok) throw new Error('Помилка завантаження даних');
                 const data = await response.json();
                 
                 this.session = data.session;
@@ -706,7 +727,7 @@ const SeatsPage = {
                 if (this.canSelectMore) {
                     this.selectedSeats.push(seat.id);
                 } else {
-                    showAlert('РњР°РєСЃРёРјСѓРј 5 РјС–СЃС†СЊ РЅР° РѕРґРёРЅ СЃРµР°РЅСЃ!', 'warning');
+                    showAlert('Максимум 5 місць на один сеанс!', 'warning');
                 }
             }
         },
@@ -721,37 +742,37 @@ const SeatsPage = {
         },
         async bookSeats() {
             if (!this.hasSelection) {
-                showAlert('РћР±РµСЂС–С‚СЊ С…РѕС‡Р° Р± РѕРґРЅРµ РјС–СЃС†Рµ', 'warning');
+                showAlert('Оберіть хоча б одне місце', 'warning');
                 return;
             }
             try {
                 this.booking = true;
-                const response = await fetch(`/api/sessions/${this.sessionId}/book`, {
+                const response = await apiFetch(`/api/sessions/${this.sessionId}/book`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ seat_ids: this.selectedSeats })
                 });
                 const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'РџРѕРјРёР»РєР° Р±СЂРѕРЅСЋРІР°РЅРЅСЏ');
+                if (!response.ok) throw new Error(data.error || 'Помилка бронювання');
 
                 const bookingIds = Array.isArray(data.booking_ids) ? data.booking_ids : [];
                 if (bookingIds.length === 0) {
-                    showAlert('Р‘СЂРѕРЅСЋРІР°РЅРЅСЏ СЃС‚РІРѕСЂРµРЅРѕ, Р°Р»Рµ РЅРµ РІРґР°Р»РѕСЃСЏ РїС–РґРіРѕС‚СѓРІР°С‚Рё РѕРїР»Р°С‚Сѓ.', 'warning');
+                    showAlert('Бронювання створено, але не вдалося підготувати оплату.', 'warning');
                     setTimeout(() => this.$router.push({ name: 'profile' }), 1500);
                     return;
                 }
 
-                const paymentResponse = await fetch('/api/payments/create-checkout', {
+                const paymentResponse = await apiFetch('/api/payments/create-checkout', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ booking_ids: bookingIds })
                 });
                 const paymentData = await paymentResponse.json();
                 if (!paymentResponse.ok || !paymentData?.payment?.checkout_url) {
-                    throw new Error(paymentData.error || 'РќРµ РІРґР°Р»РѕСЃСЏ СЃС‚РІРѕСЂРёС‚Рё РїР»Р°С‚С–Р¶');
+                    throw new Error(paymentData.error || 'Не вдалося створити платіж');
                 }
 
-                showAlert('Р‘СЂРѕРЅСЋРІР°РЅРЅСЏ СЃС‚РІРѕСЂРµРЅРѕ. РџРµСЂРµС…РѕРґРёРјРѕ РґРѕ РѕРїР»Р°С‚Рё...', 'success');
+                showAlert('Бронювання створено. Переходимо до оплати...', 'success');
                 setTimeout(() => {
                     window.location.href = paymentData.payment.checkout_url;
                 }, 700);
@@ -769,7 +790,7 @@ const SeatsPage = {
         if (this.sessionId) {
             this.loadSeats();
         } else {
-            this.error = 'Session ID РЅРµ Р·РЅР°Р№РґРµРЅРѕ';
+            this.error = 'Session ID не знайдено';
         }
     }
 };
@@ -791,11 +812,11 @@ const LandingPage = {
                 
                 const data = await clientCache.getOrFetch(
                     'cinema_popular_films',
-                    () => fetch('/api/films/popular').then(r => {
-                        if (!r.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                    () => apiFetch('/api/films/popular').then(r => {
+                        if (!r.ok) throw new Error('Помилка завантаження');
                         return r.json();
                     }),
-                    3600  // 1 РіРѕРґРёРЅР°
+                    3600  // 1 година
                 );
                 
                 this.popularFilms = data.films || [];
@@ -815,7 +836,7 @@ const LandingPage = {
             }
         },
         starsDisplay(rating) {
-            return 'в­ђ'.repeat(Math.round(rating));
+            return '⭐'.repeat(Math.round(rating));
         },
         async toggleFavorite(film) {
             if (!authState.authenticated) {
@@ -824,7 +845,7 @@ const LandingPage = {
             }
             try {
                 const method = film.is_favorite ? 'DELETE' : 'POST';
-                const res = await fetch(`/api/favorites/${film.id}`, { method });
+                const res = await apiFetch(`/api/favorites/${film.id}`, { method });
                 const data = await res.json();
                 if (data.success) {
                     film.is_favorite = data.action === 'added';
@@ -832,7 +853,7 @@ const LandingPage = {
                     showAlert(data.error, 'danger');
                 }
             } catch (e) {
-                showAlert('РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ', 'danger');
+                showAlert('Помилка з\'єднання', 'danger');
             }
         }
     },
@@ -862,8 +883,8 @@ const AdminDashboardPage = {
             try {
                 this.loading = true;
                 
-                const statsRes = await fetch('/api/admin/stats');
-                if (!statsRes.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ СЃС‚Р°С‚РёСЃС‚РёРєРё');
+                const statsRes = await apiFetch('/api/admin/stats');
+                if (!statsRes.ok) throw new Error('Помилка завантаження статистики');
                 this.stats = await statsRes.json();
                 
                 if (this.stats.halls_stats && this.stats.halls_stats.length > 0) {
@@ -871,8 +892,8 @@ const AdminDashboardPage = {
                     this.selectedHallId = this.halls[0].hall_id;
                 }
                 
-                const occupancyRes = await fetch('/api/admin/stats/occupancy');
-                const revenueRes = await fetch('/api/admin/stats/revenue');
+                const occupancyRes = await apiFetch('/api/admin/stats/occupancy');
+                const revenueRes = await apiFetch('/api/admin/stats/revenue');
                 
                 if (!occupancyRes.ok) {
                     console.error('Occupancy error:', occupancyRes.status, occupancyRes.statusText);
@@ -923,7 +944,7 @@ const AdminDashboardPage = {
                 data: {
                     labels: this.occupancyData.labels || [],
                     datasets: [{
-                        label: 'РћРєСѓРїРѕРІР°РЅС–СЃС‚СЊ (%)',
+                        label: 'Окупованість (%)',
                         data: this.occupancyData.occupancy || [],
                         backgroundColor: 'rgba(139, 92, 246, 0.8)',
                         borderColor: 'rgba(139, 92, 246, 1)',
@@ -959,7 +980,7 @@ const AdminDashboardPage = {
                     data: {
                         labels: this.revenueData.labels || [],
                         datasets: [{
-                            label: 'Р’РёСЂСѓС‡РєР° (UAH)',
+                            label: 'Виручка (UAH)',
                             data: this.revenueData.revenue || [],
                             backgroundColor: 'rgba(16, 185, 129, 0.8)',
                             borderColor: 'rgba(16, 185, 129, 1)',
@@ -1022,8 +1043,8 @@ const AdminFilmsPage = {
         async loadFilms() {
             try {
                 this.loading = true;
-                const res = await fetch('/api/admin/films');
-                if (!res.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                const res = await apiFetch('/api/admin/films');
+                if (!res.ok) throw new Error('Помилка завантаження');
                 const data = await res.json();
                 this.films = data.films;
             } catch (e) {
@@ -1064,9 +1085,9 @@ const AdminFilmsPage = {
         },
         async submitForm() {
             this.formError = '';
-            if (!this.form.title.trim()) { this.formError = 'РќР°Р·РІР° РѕР±РѕРІ\'СЏР·РєРѕРІР°'; return; }
+            if (!this.form.title.trim()) { this.formError = 'Назва обов\'язкова'; return; }
             if (!this.form.description.trim() || this.form.description.trim().length < 10) {
-                this.formError = 'РћРїРёСЃ РјС–РЅС–РјСѓРј 10 СЃРёРјРІРѕР»С–РІ'; return;
+                this.formError = 'Опис мінімум 10 символів'; return;
             }
 
             this.submitting = true;
@@ -1085,9 +1106,9 @@ const AdminFilmsPage = {
                     : '/api/admin/films';
                 const method = this.editingFilm ? 'PUT' : 'POST';
 
-                const res = await fetch(url, { method, body: fd });
+                const res = await apiFetch(url, { method, body: fd });
                 const data = await res.json();
-                if (!res.ok) { this.formError = data.error || 'РџРѕРјРёР»РєР°'; return; }
+                if (!res.ok) { this.formError = data.error || 'Помилка'; return; }
 
                 showAlert(data.message, 'success');
                 this.showForm = false;
@@ -1096,15 +1117,15 @@ const AdminFilmsPage = {
                 clientCache.clearCache('cinema_genres');
                 await this.loadFilms();
             } catch (e) {
-                this.formError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ';
+                this.formError = 'Помилка з\'єднання';
             } finally {
                 this.submitting = false;
             }
         },
         async deleteFilm(film) {
-            if (!confirm(`Р’РёРґР°Р»РёС‚Рё С„С–Р»СЊРј В«${film.title}В»?`)) return;
+            if (!confirm(`Видалити фільм «${film.title}»?`)) return;
             try {
-                const res = await fetch(`/api/admin/films/${film.id}`, { method: 'DELETE' });
+                const res = await apiFetch(`/api/admin/films/${film.id}`, { method: 'DELETE' });
                 const data = await res.json();
                 if (data.success) {
                     showAlert(data.message, 'success');
@@ -1115,7 +1136,7 @@ const AdminFilmsPage = {
                     showAlert(data.error, 'danger');
                 }
             } catch (e) {
-                showAlert('РџРѕРјРёР»РєР° РІРёРґР°Р»РµРЅРЅСЏ', 'danger');
+                showAlert('Помилка видалення', 'danger');
             }
         },
         truncate(text, len) {
@@ -1165,9 +1186,9 @@ const AdminSessionsPage = {
                 this.error = null;
 
                 const [sessionsResult, filmsResult, hallsResult] = await Promise.allSettled([
-                    fetch('/api/admin/sessions'),
-                    fetch('/api/admin/films'),
-                    fetch('/api/admin/halls')
+                    apiFetch('/api/admin/sessions'),
+                    apiFetch('/api/admin/films'),
+                    apiFetch('/api/admin/halls')
                 ]);
 
                 if (sessionsResult.status === 'fulfilled' && sessionsResult.value.ok) {
@@ -1192,7 +1213,7 @@ const AdminSessionsPage = {
                 }
 
                 if (sessionsResult.status !== 'fulfilled' || !sessionsResult.value.ok || filmsResult.status !== 'fulfilled' || !filmsResult.value.ok || hallsResult.status !== 'fulfilled' || !hallsResult.value.ok) {
-                    this.error = 'РќРµ РІРґР°Р»РѕСЃСЏ РїРѕРІРЅС–СЃС‚СЋ Р·Р°РІР°РЅС‚Р°Р¶РёС‚Рё РґР°РЅС–. Р§Р°СЃС‚РёРЅР° С„РѕСЂРјРё РјРѕР¶Рµ Р±СѓС‚Рё РЅРµРґРѕСЃС‚СѓРїРЅРѕСЋ.';
+                    this.error = 'Не вдалося повністю завантажити дані. Частина форми може бути недоступною.';
                 }
             } catch (e) {
                 this.error = e.message;
@@ -1213,7 +1234,7 @@ const AdminSessionsPage = {
         async createHall() {
             this.hallError = '';
             if (!this.hallForm.rows || !this.hallForm.seats_per_row) {
-                this.hallError = 'Р—Р°РїРѕРІРЅС–С‚СЊ РїР°СЂР°РјРµС‚СЂРё Р·Р°Р»Сѓ';
+                this.hallError = 'Заповніть параметри залу';
                 return;
             }
 
@@ -1222,7 +1243,7 @@ const AdminSessionsPage = {
                 const isEditing = this.editingHallId !== null;
                 const url = isEditing ? `/api/admin/halls/${this.editingHallId}` : '/api/admin/halls';
                 const method = isEditing ? 'PUT' : 'POST';
-                const res = await fetch(url, {
+                const res = await apiFetch(url, {
                     method,
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1233,7 +1254,7 @@ const AdminSessionsPage = {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    this.hallError = data.error || (isEditing ? 'РџРѕРјРёР»РєР° РѕРЅРѕРІР»РµРЅРЅСЏ Р·Р°Р»Сѓ' : 'РџРѕРјРёР»РєР° СЃС‚РІРѕСЂРµРЅРЅСЏ Р·Р°Р»Сѓ');
+                    this.hallError = data.error || (isEditing ? 'Помилка оновлення залу' : 'Помилка створення залу');
                     return;
                 }
                 showAlert(data.message, 'success');
@@ -1254,7 +1275,7 @@ const AdminSessionsPage = {
                 this.hallForm = { name: '', rows: 10, seats_per_row: 12 };
                 this.editingHallId = null;
             } catch (e) {
-                this.hallError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ';
+                this.hallError = 'Помилка з\'єднання';
             } finally {
                 this.hallSubmitting = false;
             }
@@ -1274,28 +1295,28 @@ const AdminSessionsPage = {
             this.hallError = '';
         },
         async deleteHall(hall) {
-            if (!confirm(`Р’РёРґР°Р»РёС‚Рё Р·Р°Р» "${hall.name}"? Р¦Рµ РЅРµР·РІРѕСЂРѕС‚РЅРѕ.`)) return;
+            if (!confirm(`Видалити зал "${hall.name}"? Це незворотно.`)) return;
             try {
-                const res = await fetch(`/api/admin/halls/${hall.id}`, { method: 'DELETE' });
+                const res = await apiFetch(`/api/admin/halls/${hall.id}`, { method: 'DELETE' });
                 const data = await res.json();
                 if (!res.ok) {
-                    showAlert(data.error || 'РџРѕРјРёР»РєР° РІРёРґР°Р»РµРЅРЅСЏ Р·Р°Р»Сѓ', 'danger');
+                    showAlert(data.error || 'Помилка видалення залу', 'danger');
                     return;
                 }
-                showAlert(data.message || 'Р—Р°Р» РІРёРґР°Р»РµРЅРѕ', 'success');
+                showAlert(data.message || 'Зал видалено', 'success');
                 this.halls = this.halls.filter(h => h.id !== hall.id);
                 if (this.form.hall_id === hall.id) this.form.hall_id = this.halls.length ? this.halls[0].id : '';
                 if (this.editingHallId === hall.id) {
                     this.cancelHallEdit();
                 }
             } catch (e) {
-                showAlert('РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ РїСЂРё РІРёРґР°Р»РµРЅРЅС– Р·Р°Р»Сѓ', 'danger');
+                showAlert('Помилка з\'єднання при видаленні залу', 'danger');
             }
         },
         async submitForm() {
             this.formError = '';
             if (!this.form.film_id || !this.form.hall_id || !this.form.start_time || !this.form.price) {
-                this.formError = 'Р—Р°РїРѕРІРЅС–С‚СЊ РІСЃС– РїРѕР»СЏ'; return;
+                this.formError = 'Заповніть всі поля'; return;
             }
             this.submitting = true;
             try {
@@ -1305,13 +1326,13 @@ const AdminSessionsPage = {
                     start_time: this.form.start_time.replace('T', ' '),
                     price: parseFloat(this.form.price)
                 };
-                const res = await fetch('/api/admin/sessions', {
+                const res = await apiFetch('/api/admin/sessions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json();
-                if (!res.ok) { this.formError = data.error || 'РџРѕРјРёР»РєР°'; return; }
+                if (!res.ok) { this.formError = data.error || 'Помилка'; return; }
                 showAlert(data.message, 'success');
                 if (data.session) {
                     this.sessions.unshift(data.session);
@@ -1319,15 +1340,15 @@ const AdminSessionsPage = {
                 this.showForm = false;
                 await this.loadData();
             } catch (e) {
-                this.formError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ';
+                this.formError = 'Помилка з\'єднання';
             } finally {
                 this.submitting = false;
             }
         },
         async cancelSession(session) {
-            if (!confirm(`РЎРєР°СЃСѓРІР°С‚Рё СЃРµР°РЅСЃ "${session.film_title}" (${session.start_time})?`)) return;
+            if (!confirm(`Скасувати сеанс "${session.film_title}" (${session.start_time})?`)) return;
             try {
-                const res = await fetch(`/api/admin/sessions/${session.id}/cancel`, { method: 'POST' });
+                const res = await apiFetch(`/api/admin/sessions/${session.id}/cancel`, { method: 'POST' });
                 const data = await res.json();
                 if (data.success) {
                     showAlert(data.message, 'success');
@@ -1336,7 +1357,7 @@ const AdminSessionsPage = {
                     showAlert(data.error, 'danger');
                 }
             } catch (e) {
-                showAlert('РџРѕРјРёР»РєР° СЃРєР°СЃСѓРІР°РЅРЅСЏ', 'danger');
+                showAlert('Помилка скасування', 'danger');
             }
         },
         formatDateTime
@@ -1393,8 +1414,8 @@ const AdminHallEditorPage = {
             try {
                 this.loading = true;
                 this.error = null;
-                const response = await fetch(`/api/admin/sessions/${this.sessionId}/hall`, { cache: 'no-store' });
-                if (!response.ok) throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ СЃС…РµРјРё Р·Р°Р»Сѓ');
+                const response = await apiFetch(`/api/admin/sessions/${this.sessionId}/hall`, { cache: 'no-store' });
+                if (!response.ok) throw new Error('Помилка завантаження схеми залу');
                 const data = await response.json();
                 this.session = data.session;
                 this.layout = data.layout;
@@ -1429,20 +1450,20 @@ const AdminHallEditorPage = {
                         status: seat.status
                     }))
                 };
-                const response = await fetch(`/api/admin/sessions/${this.sessionId}/hall`, {
+                const response = await apiFetch(`/api/admin/sessions/${this.sessionId}/hall`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
                 const data = await response.json();
                 if (!response.ok) {
-                    this.formError = data.error || 'РџРѕРјРёР»РєР° Р·Р±РµСЂРµР¶РµРЅРЅСЏ СЃС…РµРјРё Р·Р°Р»Сѓ';
+                    this.formError = data.error || 'Помилка збереження схеми залу';
                     return;
                 }
                 showAlert(data.message, 'success');
                 await this.loadHall();
             } catch (err) {
-                this.formError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ Р· СЃРµСЂРІРµСЂРѕРј';
+                this.formError = 'Помилка з\'єднання з сервером';
             } finally {
                 this.saving = false;
             }
@@ -1504,8 +1525,8 @@ const AdminCalendarPage = {
                 this.loading = true;
                 this.error = null;
                 const [calendarResult, hallsResult] = await Promise.allSettled([
-                    fetch(`/api/admin/calendar?week=${this.weekOffset}${this.selectedHallId ? `&hall_id=${this.selectedHallId}` : ''}`),
-                    fetch('/api/admin/halls')
+                    apiFetch(`/api/admin/calendar?week=${this.weekOffset}${this.selectedHallId ? `&hall_id=${this.selectedHallId}` : ''}`),
+                    apiFetch('/api/admin/halls')
                 ]);
 
                 if (calendarResult.status === 'fulfilled' && calendarResult.value.ok) {
@@ -1518,7 +1539,7 @@ const AdminCalendarPage = {
                     this.selectedHallId = data.selected_hall_id || this.selectedHallId || (this.halls[0] && this.halls[0].id) || '';
                     this.startOfWeek = data.start_of_week;
                 } else {
-                    throw new Error('РџРѕРјРёР»РєР° Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ');
+                    throw new Error('Помилка завантаження');
                 }
 
                 if (hallsResult.status === 'fulfilled' && hallsResult.value.ok) {
@@ -1577,12 +1598,12 @@ const AdminCalendarPage = {
         },
         async createSession() {
             if (!this.createForm.film_id || !this.createForm.hall_id || !this.createForm.price) {
-                showAlert('Р—Р°РїРѕРІРЅС–С‚СЊ РІСЃС– РїРѕР»СЏ', 'danger');
+                showAlert('Заповніть всі поля', 'danger');
                 return;
             }
             this.submitting = true;
             try {
-                const res = await fetch('/api/admin/calendar/create-session', {
+                const res = await apiFetch('/api/admin/calendar/create-session', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1595,23 +1616,23 @@ const AdminCalendarPage = {
                 });
                 const data = await res.json();
                 if (!res.ok) {
-                    showAlert(data.error || 'РџРѕРјРёР»РєР° СЃС‚РІРѕСЂРµРЅРЅСЏ', 'danger');
+                    showAlert(data.error || 'Помилка створення', 'danger');
                     return;
                 }
                 showAlert(data.message, 'success');
                 this.showModal = false;
                 await this.loadCalendar();
             } catch (e) {
-                showAlert('РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ', 'danger');
+                showAlert('Помилка з\'єднання', 'danger');
             } finally {
                 this.submitting = false;
             }
         },
         async cancelSession(sessionId, event) {
             if (event) event.stopPropagation();
-            if (!confirm('Р’Рё РІРїРµРІРЅРµРЅС–, С‰Рѕ С…РѕС‡РµС‚Рµ СЃРєР°СЃСѓРІР°С‚Рё С†РµР№ СЃРµР°РЅСЃ?')) return;
+            if (!confirm('Ви впевнені, що хочете скасувати цей сеанс?')) return;
             try {
-                const res = await fetch(`/api/admin/sessions/${sessionId}/cancel`, { method: 'POST' });
+                const res = await apiFetch(`/api/admin/sessions/${sessionId}/cancel`, { method: 'POST' });
                 const data = await res.json();
                 if (data.success) {
                     showAlert(data.message, 'success');
@@ -1620,14 +1641,14 @@ const AdminCalendarPage = {
                     showAlert(data.error, 'danger');
                 }
             } catch (e) {
-                showAlert('РџРѕРјРёР»РєР° СЃРєР°СЃСѓРІР°РЅРЅСЏ', 'danger');
+                showAlert('Помилка скасування', 'danger');
             }
         },
         weekLabel() {
-            if (this.weekOffset === 0) return 'рџ“… РџРѕС‚РѕС‡РЅРёР№ С‚РёР¶РґРµРЅСЊ';
-            if (this.weekOffset === 1) return 'рџ“… РќР°СЃС‚СѓРїРЅРёР№ С‚РёР¶РґРµРЅСЊ';
-            if (this.weekOffset > 1) return `рџ“… +${this.weekOffset} С‚РёР¶РЅС–РІ`;
-            return `рџ“… ${this.weekOffset} С‚РёР¶РЅС–РІ РЅР°Р·Р°Рґ`;
+            if (this.weekOffset === 0) return '📅 Поточний тиждень';
+            if (this.weekOffset === 1) return '📅 Наступний тиждень';
+            if (this.weekOffset > 1) return `📅 +${this.weekOffset} тижнів`;
+            return `📅 ${this.weekOffset} тижнів назад`;
         },
         weekRange() {
             if (!this.startOfWeek) return '';
@@ -1680,13 +1701,13 @@ const AdminScannerPage = {
                 : this.tokenInput.trim();
 
             if (!token) {
-                this.scanError = 'Р’СЃС‚Р°РІС‚Рµ QR-С‚РѕРєРµРЅ Р°Р±Рѕ РїРѕРІРЅРёР№ QR payload';
+                this.scanError = 'Вставте QR-токен або повний QR payload';
                 return;
             }
 
             this.scanning = true;
             try {
-                const res = await fetch('/api/admin/tickets/scan', {
+                const res = await apiFetch('/api/admin/tickets/scan', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token })
@@ -1694,16 +1715,16 @@ const AdminScannerPage = {
                 const data = await res.json();
 
                 if (!res.ok) {
-                    this.scanError = data.error || 'РџРѕРјРёР»РєР° РїРµСЂРµРІС–СЂРєРё РєРІРёС‚РєР°';
+                    this.scanError = data.error || 'Помилка перевірки квитка';
                     this.scanResult = data.ticket || null;
                     return;
                 }
 
                 this.scanResult = data.ticket || null;
-                showAlert(data.message || 'РљРІРёС‚РѕРє РІР°Р»С–РґРЅРёР№', 'success');
+                showAlert(data.message || 'Квиток валідний', 'success');
                 this.tokenInput = '';
             } catch (e) {
-                this.scanError = 'РџРѕРјРёР»РєР° Р·\'С”РґРЅР°РЅРЅСЏ Р· СЃРµСЂРІРµСЂРѕРј';
+                this.scanError = 'Помилка з\'єднання з сервером';
             } finally {
                 this.scanning = false;
             }
@@ -1729,38 +1750,38 @@ const Breadcrumbs = {
     computed: {
         items() {
             const route = this.$route;
-            const items = [{ label: 'Р“РѕР»РѕРІРЅР°', path: '/', icon: 'fas fa-home' }];
+            const items = [{ label: 'Головна', path: '/', icon: 'fas fa-home' }];
             
             if (route.name === 'landing') return [];
             if (route.name === 'films') {
-                items.push({ label: 'Р¤С–Р»СЊРјРё', path: '/films', icon: 'fas fa-film' });
+                items.push({ label: 'Фільми', path: '/films', icon: 'fas fa-film' });
             } else if (route.name === 'film-detail') {
-                items.push({ label: 'Р¤С–Р»СЊРјРё', path: '/films', icon: 'fas fa-film' });
-                items.push({ label: 'Р”РµС‚Р°Р»С– С„С–Р»СЊРјСѓ', path: route.path });
+                items.push({ label: 'Фільми', path: '/films', icon: 'fas fa-film' });
+                items.push({ label: 'Деталі фільму', path: route.path });
             } else if (route.name === 'favorites') {
-                items.push({ label: 'РћР±СЂР°РЅС–', path: '/favorites', icon: 'fas fa-heart' });
+                items.push({ label: 'Обрані', path: '/favorites', icon: 'fas fa-heart' });
             } else if (route.name === 'profile') {
-                items.push({ label: 'РџСЂРѕС„С–Р»СЊ', path: '/profile', icon: 'fas fa-user' });
+                items.push({ label: 'Профіль', path: '/profile', icon: 'fas fa-user' });
             } else if (route.name === 'seats') {
-                items.push({ label: 'Р¤С–Р»СЊРјРё', path: '/films', icon: 'fas fa-film' });
-                items.push({ label: 'Р’РёР±С–СЂ РјС–СЃС†СЊ', path: route.path, icon: 'fas fa-couch' });
+                items.push({ label: 'Фільми', path: '/films', icon: 'fas fa-film' });
+                items.push({ label: 'Вибір місць', path: route.path, icon: 'fas fa-couch' });
             } else if (route.name === 'login') {
-                items.push({ label: 'Р’С…С–Рґ', path: '/login', icon: 'fas fa-sign-in-alt' });
+                items.push({ label: 'Вхід', path: '/login', icon: 'fas fa-sign-in-alt' });
             } else if (route.name === 'register') {
-                items.push({ label: 'Р РµС”СЃС‚СЂР°С†С–СЏ', path: '/register', icon: 'fas fa-user-plus' });
+                items.push({ label: 'Реєстрація', path: '/register', icon: 'fas fa-user-plus' });
             } else if (route.name && route.name.startsWith('admin')) {
-                items.push({ label: 'РђРґРјС–РЅ-РїР°РЅРµР»СЊ', path: '/admin', icon: 'fas fa-cog' });
+                items.push({ label: 'Адмін-панель', path: '/admin', icon: 'fas fa-cog' });
                 if (route.name === 'admin-films') {
-                    items.push({ label: 'Р¤С–Р»СЊРјРё', path: '/admin/films', icon: 'fas fa-film' });
+                    items.push({ label: 'Фільми', path: '/admin/films', icon: 'fas fa-film' });
                 } else if (route.name === 'admin-sessions') {
-                    items.push({ label: 'РЎРµР°РЅСЃРё', path: '/admin/sessions', icon: 'fas fa-ticket-alt' });
+                    items.push({ label: 'Сеанси', path: '/admin/sessions', icon: 'fas fa-ticket-alt' });
                 } else if (route.name === 'admin-hall-editor') {
-                    items.push({ label: 'РЎРµР°РЅСЃРё', path: '/admin/sessions', icon: 'fas fa-ticket-alt' });
-                    items.push({ label: 'Р РµРґР°РєС‚РѕСЂ Р·Р°Р»Сѓ', path: route.path, icon: 'fas fa-couch' });
+                    items.push({ label: 'Сеанси', path: '/admin/sessions', icon: 'fas fa-ticket-alt' });
+                    items.push({ label: 'Редактор залу', path: route.path, icon: 'fas fa-couch' });
                 } else if (route.name === 'admin-calendar') {
-                    items.push({ label: 'РљР°Р»РµРЅРґР°СЂ', path: '/admin/calendar', icon: 'fas fa-calendar-week' });
+                    items.push({ label: 'Календар', path: '/admin/calendar', icon: 'fas fa-calendar-week' });
                 } else if (route.name === 'admin-scanner') {
-                    items.push({ label: 'РЎРєР°РЅРµСЂ РєРІРёС‚РєС–РІ', path: '/admin/scanner', icon: 'fas fa-qrcode' });
+                    items.push({ label: 'Сканер квитків', path: '/admin/scanner', icon: 'fas fa-qrcode' });
                 }
             }
             
@@ -1856,21 +1877,21 @@ router.beforeEach(async (to, from, next) => {
 
 router.afterEach((to) => {
     const titles = {
-        'landing': 'CinemaBook - Р“РѕР»РѕРІРЅР°',
-        'films': 'CinemaBook - РђС„С–С€Р°',
-        'film-detail': 'CinemaBook - Р¤С–Р»СЊРј',
-        'profile': 'CinemaBook - РџСЂРѕС„С–Р»СЊ',
-        'favorites': 'CinemaBook - РћР±СЂР°РЅС–',
-        'seats': 'CinemaBook - Р’РёР±С–СЂ РјС–СЃС†СЊ',
-        'login': 'CinemaBook - Р’С…С–Рґ',
-        'register': 'CinemaBook - Р РµС”СЃС‚СЂР°С†С–СЏ',
-        'admin-dashboard': 'CinemaBook - РђРґРјС–РЅ',
-        'admin-films': 'CinemaBook - РљРµСЂСѓРІР°РЅРЅСЏ С„С–Р»СЊРјР°РјРё',
-        'admin-sessions': 'CinemaBook - РљРµСЂСѓРІР°РЅРЅСЏ СЃРµР°РЅСЃР°РјРё',
-        'admin-hall-editor': 'CinemaBook - Р РµРґР°РєС‚РѕСЂ Р·Р°Р»Сѓ',
-        'admin-calendar': 'CinemaBook - РљР°Р»РµРЅРґР°СЂ СЃРµР°РЅСЃС–РІ',
-        'admin-scanner': 'CinemaBook - РЎРєР°РЅРµСЂ РєРІРёС‚РєС–РІ',
-        'not-found': 'CinemaBook - РЎС‚РѕСЂС–РЅРєСѓ РЅРµ Р·РЅР°Р№РґРµРЅРѕ'
+        'landing': 'CinemaBook - Головна',
+        'films': 'CinemaBook - Афіша',
+        'film-detail': 'CinemaBook - Фільм',
+        'profile': 'CinemaBook - Профіль',
+        'favorites': 'CinemaBook - Обрані',
+        'seats': 'CinemaBook - Вибір місць',
+        'login': 'CinemaBook - Вхід',
+        'register': 'CinemaBook - Реєстрація',
+        'admin-dashboard': 'CinemaBook - Адмін',
+        'admin-films': 'CinemaBook - Керування фільмами',
+        'admin-sessions': 'CinemaBook - Керування сеансами',
+        'admin-hall-editor': 'CinemaBook - Редактор залу',
+        'admin-calendar': 'CinemaBook - Календар сеансів',
+        'admin-scanner': 'CinemaBook - Сканер квитків',
+        'not-found': 'CinemaBook - Сторінку не знайдено'
     };
     document.title = titles[to.name] || 'CinemaBook';
 });
@@ -1887,13 +1908,13 @@ document.addEventListener('click', function(e) {
     const logoutBtn = e.target.closest('#spa-logout-btn');
     if (logoutBtn) {
         e.preventDefault();
-        fetch('/api/auth/logout', { method: 'POST' })
+        apiFetch('/api/auth/logout', { method: 'POST' })
             .then(() => {
                 authState.clear();
                 router.push('/login');
-                showAlert('Р’РёС…С–Рґ РІРёРєРѕРЅР°РЅРѕ', 'success');
+                showAlert('Вихід виконано', 'success');
             })
-            .catch(() => showAlert('РџРѕРјРёР»РєР° РІРёС…РѕРґСѓ', 'danger'));
+            .catch(() => showAlert('Помилка виходу', 'danger'));
         return;
     }
 
