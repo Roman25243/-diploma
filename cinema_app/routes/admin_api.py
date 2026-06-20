@@ -710,7 +710,7 @@ def register_admin_routes(api_bp):
 
         week_offset = request.args.get('week', 0, type=int)
         if week_offset < -52 or week_offset > 52:
-            return json_error('РџР°СЂР°РјРµС‚СЂ week РјР°С” Р±СѓС‚Рё РІ РјРµР¶Р°С… РІС–Рґ -52 РґРѕ 52')
+            return json_error('Параметр week має бути в межах від -52 до 52')
 
         hall_id = request.args.get('hall_id', type=int)
         halls_query = Hall.query.order_by(Hall.id.asc())
@@ -733,7 +733,7 @@ def register_admin_routes(api_bp):
         if hall_id is not None:
             selected_hall = Hall.query.get(hall_id)
             if not selected_hall:
-                return jsonify({'success': False, 'error': 'Р—Р°Р» РЅРµ Р·РЅР°Р№РґРµРЅРѕ'}), 404
+                return jsonify({'success': False, 'error': 'Зал не знайдено'}), 404
         else:
             selected_hall = halls[0]
 
@@ -746,7 +746,7 @@ def register_admin_routes(api_bp):
             day = start_of_week + timedelta(days=i)
             week_days.append({
                 'date': day.isoformat(),
-                'day_name': ['РџРЅ', 'Р’С‚', 'РЎСЂ', 'Р§С‚', 'РџС‚', 'РЎР±', 'РќРґ'][day.weekday()],
+                'day_name': ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Нд'][day.weekday()],
                 'full_date': day.strftime('%d.%m.%Y')
             })
 

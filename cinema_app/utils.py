@@ -1,4 +1,4 @@
-﻿"""Р”РѕРїРѕРјС–Р¶РЅС– С„СѓРЅРєС†С–С— РґР»СЏ РґРѕРґР°С‚РєСѓ"""
+﻿"""Допоміжні функції для додатку"""
 from io import BytesIO
 import importlib
 
@@ -9,7 +9,7 @@ from threading import Thread
 
 
 def send_async_email(app, msg):
-    """РђСЃРёРЅС…СЂРѕРЅРЅР° РІС–РґРїСЂР°РІРєР° email"""
+    """Асинхронна відправка email"""
     with app.app_context():
         try:
             mail.send(msg)
@@ -19,15 +19,15 @@ def send_async_email(app, msg):
 
 def send_email(subject, sender, recipients, text_body, html_body, app, attachments=None):
     """
-    Р’С–РґРїСЂР°РІРєР° email Р· РїС–РґС‚СЂРёРјРєРѕСЋ Р°СЃРёРЅС…СЂРѕРЅРЅРѕСЃС‚С–
+    Відправка email з підтримкою асинхронності
     
     Args:
-        subject: РўРµРјР° Р»РёСЃС‚Р°
-        sender: Р’С–РґРїСЂР°РІРЅРёРє
-        recipients: РЎРїРёСЃРѕРє РѕС‚СЂРёРјСѓРІР°С‡С–РІ
-        text_body: РўРµРєСЃС‚РѕРІР° РІРµСЂСЃС–СЏ
-        html_body: HTML РІРµСЂСЃС–СЏ
-        app: Flask РґРѕРґР°С‚РѕРє
+        subject: Тема листа
+        sender: Відправник
+        recipients: Список отримувачів
+        text_body: Текстова версія
+        html_body: HTML-версія
+        app: Flask-додаток
     """
     msg = Message(subject, sender=sender, recipients=recipients)
     msg.body = text_body
@@ -87,7 +87,7 @@ def send_ticket_email(user, ticket, app):
         qr_attachment = []
 
     send_email(
-        subject=f'Р’Р°С€ QR-РєРІРёС‚РѕРє: {session.film.title}',
+        subject=f'Ваш QR-квиток: {session.film.title}',
         sender=current_app.config['MAIL_DEFAULT_SENDER'],
         recipients=[user.email],
         text_body=text_body,
@@ -99,12 +99,12 @@ def send_ticket_email(user, ticket, app):
 
 def send_booking_confirmation_email(user, session, seats):
     """
-    Р’С–РґРїСЂР°РІРєР° email-РїС–РґС‚РІРµСЂРґР¶РµРЅРЅСЏ Р±СЂРѕРЅСЋРІР°РЅРЅСЏ
+    Відправка email-підтвердження бронювання
     
     Args:
-        user: РћР±'С”РєС‚ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°
-        session: РћР±'С”РєС‚ СЃРµР°РЅСЃСѓ
-        seats: РЎРїРёСЃРѕРє Р·Р°Р±СЂРѕРЅСЊРѕРІР°РЅРёС… РјС–СЃС†СЊ
+        user: Об'єкт користувача
+        session: Об'єкт сеансу
+        seats: Список заброньованих місць
     """
     from flask import current_app
     
@@ -133,7 +133,7 @@ def send_booking_confirmation_email(user, session, seats):
     )
     
     send_email(
-        subject=f'РџС–РґС‚РІРµСЂРґР¶РµРЅРЅСЏ Р±СЂРѕРЅСЋРІР°РЅРЅСЏ: {session.film.title}',
+        subject=f'Підтвердження бронювання: {session.film.title}',
         sender=current_app.config['MAIL_DEFAULT_SENDER'],
         recipients=[user.email],
         text_body=text_body,
@@ -144,12 +144,12 @@ def send_booking_confirmation_email(user, session, seats):
 
 def send_booking_cancellation_email(user, session, seat):
     """
-    Р’С–РґРїСЂР°РІРєР° email РїСЂРѕ СЃРєР°СЃСѓРІР°РЅРЅСЏ Р±СЂРѕРЅСЋРІР°РЅРЅСЏ
+    Відправка email про скасування бронювання
     
     Args:
-        user: РћР±'С”РєС‚ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°
-        session: РћР±'С”РєС‚ СЃРµР°РЅСЃСѓ
-        seat: РћР±'С”РєС‚ РјС–СЃС†СЏ
+        user: Об'єкт користувача
+        session: Об'єкт сеансу
+        seat: Об'єкт місця
     """
     from flask import current_app
     
@@ -176,7 +176,7 @@ def send_booking_cancellation_email(user, session, seat):
     )
     
     send_email(
-        subject=f'РЎРєР°СЃСѓРІР°РЅРЅСЏ Р±СЂРѕРЅСЋРІР°РЅРЅСЏ: {session.film.title}',
+        subject=f'Скасування бронювання: {session.film.title}',
         sender=current_app.config['MAIL_DEFAULT_SENDER'],
         recipients=[user.email],
         text_body=text_body,
@@ -187,11 +187,11 @@ def send_booking_cancellation_email(user, session, seat):
 
 def send_session_cancellation_email(user, session):
     """
-    Р’С–РґРїСЂР°РІРєР° email РїСЂРѕ СЃРєР°СЃСѓРІР°РЅРЅСЏ СЃРµР°РЅСЃСѓ Р°РґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂРѕРј
+    Відправка email про скасування сеансу адміністратором
     
     Args:
-        user: РћР±'С”РєС‚ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°
-        session: РћР±'С”РєС‚ СЃРµР°РЅСЃСѓ
+        user: Об'єкт користувача
+        session: Об'єкт сеансу
     """
     from flask import current_app
     
@@ -214,7 +214,7 @@ def send_session_cancellation_email(user, session):
     )
     
     send_email(
-        subject=f'РЎРєР°СЃСѓРІР°РЅРЅСЏ СЃРµР°РЅСЃСѓ: {session.film.title}',
+        subject=f'Скасування сеансу: {session.film.title}',
         sender=current_app.config['MAIL_DEFAULT_SENDER'],
         recipients=[user.email],
         text_body=text_body,
@@ -225,11 +225,11 @@ def send_session_cancellation_email(user, session):
 
 def notify_favorites_about_new_sessions(session):
     """
-    Р’С–РґРїСЂР°РІРєР° РїРѕРІС–РґРѕРјР»РµРЅСЊ РєРѕСЂРёСЃС‚СѓРІР°С‡Р°Рј РїСЂРѕ РЅРѕРІС– СЃРµР°РЅСЃРё РѕР±СЂР°РЅРёС… С„С–Р»СЊРјС–РІ
-    РќР°РґСЃРёР»Р°С”С‚СЊСЃСЏ Р»РёС€Рµ РѕРґРЅРµ РїРѕРІС–РґРѕРјР»РµРЅРЅСЏ РЅР° РґРµРЅСЊ РґР»СЏ РєРѕР¶РЅРѕРіРѕ С„С–Р»СЊРјСѓ
+    Відправка повідомлень користувачам про нові сеанси обраних фільмів
+    Надсилається лише одне повідомлення на день для кожного фільму
     
     Args:
-        session: РћР±'С”РєС‚ РЅРѕРІРѕСЃС‚РІРѕСЂРµРЅРѕРіРѕ СЃРµР°РЅСЃСѓ
+        session: Об'єкт новоствореного сеансу
     """
     from flask import current_app
     from models import Favorite, User, SessionNotification
@@ -280,7 +280,7 @@ def notify_favorites_about_new_sessions(session):
             )
             
             send_email(
-                subject=f'РќРѕРІС– СЃРµР°РЅСЃРё: {session.film.title}',
+                subject=f'Нові сеанси: {session.film.title}',
                 sender=current_app.config['MAIL_DEFAULT_SENDER'],
                 recipients=[user.email],
                 text_body=text_body,
@@ -295,8 +295,13 @@ def notify_favorites_about_new_sessions(session):
         db.session.add(notification_record)
         db.session.commit()
         
-        current_app.logger.info(f'РќР°РґС–СЃР»Р°РЅРѕ {len(favorites)} РїРѕРІС–РґРѕРјР»РµРЅСЊ РїСЂРѕ РЅРѕРІС– СЃРµР°РЅСЃРё С„С–Р»СЊРјСѓ {session.film.title} РЅР° {session_date}')
+        current_app.logger.info(
+            f'Надіслано {len(favorites)} повідомлень про нові сеанси фільму '
+            f'{session.film.title} на {session_date}'
+        )
         
     except Exception as e:
-        current_app.logger.error(f'РџРѕРјРёР»РєР° РЅР°РґСЃРёР»Р°РЅРЅСЏ РїРѕРІС–РґРѕРјР»РµРЅСЊ РїСЂРѕ РЅРѕРІС– СЃРµР°РЅСЃРё: {str(e)}')
+        current_app.logger.error(
+            f'Помилка надсилання повідомлень про нові сеанси: {str(e)}'
+        )
         db.session.rollback()

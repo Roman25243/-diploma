@@ -32,9 +32,11 @@ def _mark_payment_failed(payment):
         return
 
     payment.status = 'failed'
-    for booking in payment.bookings:
+    for booking in list(payment.bookings):
         if booking.payment_status != 'paid':
             booking.payment_status = 'failed'
+            booking.seat.status = 'free'
+            db.session.delete(booking)
 
 
 def _create_stripe_checkout_session(payment, seats_count):

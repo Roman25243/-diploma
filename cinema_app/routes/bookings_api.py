@@ -1,10 +1,12 @@
-from flask import jsonify, url_for as flask_url_for
+from datetime import datetime, timedelta
+
+from flask import current_app, jsonify, url_for as flask_url_for
 from flask_login import current_user, login_required
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import joinedload, selectinload
 
 from extensions import db
-from models import Booking, Seat, Session
+from models import Booking, PaymentTransaction, Seat, Session
 from services.api_common import (
     get_json_payload,
     is_session_in_past,
@@ -13,6 +15,42 @@ from services.api_common import (
 
 
 def register_bookings_routes(api_bp):
+    def _release_expired_pending_bookings(session_id):
+        timeout_minutes = current_app.config.get('PAYMENT_RESERVATION_MINUTES', 15)
+        if not isinstance(timeout_minutes, int) or timeout_minutes <= 0:
+            return 0
+
+        cutoff = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+
+        expired_bookings = Booking.query.join(Seat).join(
+            PaymentTransaction,
+            Booking.payment_id == PaymentTransaction.id
+        ).filter(
+            Seat.session_id == session_id,
+            Seat.status == 'booked',
+            Booking.payment_status.in_(['pending', 'unpaid']),
+            PaymentTransaction.status == 'pending',
+            PaymentTransaction.created_at <= cutoff
+        ).all()
+
+        if not expired_bookings:
+            return 0
+
+        touched_payments = set()
+        for booking in expired_bookings:
+            booking.seat.status = 'free'
+            if booking.payment_id:
+                touched_payments.add(booking.payment_id)
+            db.session.delete(booking)
+
+        if touched_payments:
+            PaymentTransaction.query.filter(
+                PaymentTransaction.id.in_(touched_payments),
+                PaymentTransaction.status == 'pending'
+            ).update({'status': 'failed'}, synchronize_session='fetch')
+
+        return len(expired_bookings)
+
     @api_bp.route('/sessions/<int:session_id>/seats', methods=['GET'])
     @login_required
     def get_seats(session_id):
@@ -21,6 +59,10 @@ def register_bookings_routes(api_bp):
             joinedload(Session.film),
             selectinload(Session.seats)
         ).get_or_404(session_id)
+
+        released_count = _release_expired_pending_bookings(session_id)
+        if released_count:
+            db.session.commit()
 
         if session.status == 'cancelled':
             return jsonify({'error': 'Сеанс скасовано'}), 400
