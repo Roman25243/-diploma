@@ -2,6 +2,8 @@
 
 Цей гайд - для користувачів Windows які хочуть швидко задеплоїти CinemaBook на Heroku.
 
+Важливо: **Heroku зараз не має повністю безплатного варіанту** для нового деплою. Якщо вам потрібен саме free deployment, відкрийте [FREE_DEPLOYMENT_WINDOWS.md](FREE_DEPLOYMENT_WINDOWS.md) і використовуйте Render + Neon.
+
 ---
 
 ## 1️⃣ Встановлення Heroku CLI
@@ -89,6 +91,8 @@ heroku apps
 ---
 
 ## 5️⃣ Додання PostgreSQL
+
+Heroku PostgreSQL - це платний addon. Для безплатного варіанту використовуйте Neon і дивіться [FREE_DEPLOYMENT_WINDOWS.md](FREE_DEPLOYMENT_WINDOWS.md).
 
 ```powershell
 # Додайте мінімальний план PostgreSQL ($5/місяц)
