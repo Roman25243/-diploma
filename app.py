@@ -1,6 +1,7 @@
 ﻿from flask import Flask
 from werkzeug.security import generate_password_hash
 import os
+from sqlalchemy import inspect
 
 from config import Config
 from extensions import db, login_manager, mail, csrf, cache, compress, migrate, cors
@@ -63,15 +64,18 @@ def create_app():
         return User.query.get(int(user_id))
     
     with app.app_context():
-        if not User.query.first():
-            admin = User(
-                email='admin@example.com',
-                password=generate_password_hash('admin'),
-                name='Admin',
-                is_admin=True
-            )
-            db.session.add(admin)
-            db.session.commit()
+        try:
+            if inspect(db.engine).has_table('user') and not User.query.first():
+                admin = User(
+                    email='admin@example.com',
+                    password=generate_password_hash('admin'),
+                    name='Admin',
+                    is_admin=True
+                )
+                db.session.add(admin)
+                db.session.commit()
+        except Exception as exc:
+            app.logger.warning('Skipping admin bootstrap during startup: %s', exc)
     
     return app
 
