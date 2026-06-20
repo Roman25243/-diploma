@@ -11,7 +11,11 @@ class Config:
     # База даних - PostgreSQL або SQLite
     # Для PostgreSQL встановіть DATABASE_URL у .env файлі:
     # DATABASE_URL=postgresql://username:password@localhost:5432/cinema_db
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///database.db'
+    database_url = os.environ.get('DATABASE_URL') or 'sqlite:///database.db'
+    # Для Heroku: замінюємо postgres:// на postgresql://
+    if database_url and database_url.startswith('postgres://'):
+        database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    SQLALCHEMY_DATABASE_URI = database_url
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = 'static/uploads'
     
