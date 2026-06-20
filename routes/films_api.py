@@ -9,7 +9,6 @@ from services.api_common import (
     film_to_dict,
     get_json_payload,
     is_session_in_past,
-    loyalty_discount,
     parse_int_field,
     pricing_for_session,
 )
@@ -109,11 +108,10 @@ def register_films_routes(api_bp):
             user_review = next((r for r in film.reviews if r.user_id == current_user.id), None)
 
         similar_films = film.get_similar_films(limit=4)
-        loyalty_data = loyalty_discount(current_user) if current_user.is_authenticated else (0.0, 'guest', 0)
 
         serialized_sessions = []
         for session in sessions:
-            pricing = pricing_for_session(session, current_user, loyalty_data=loyalty_data)
+            pricing = pricing_for_session(session, current_user)
             serialized_sessions.append({
                 'id': session.id,
                 'start_time': session.start_time,

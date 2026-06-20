@@ -1575,8 +1575,7 @@
                                     </small>
                                 </div>
                                 <small v-if="session.pricing" class="text-muted d-block">
-                                    Попит: {{ Math.round((session.pricing.occupancy_ratio || 0) * 100) }}% |
-                                    Лояльність: -{{ Math.round((session.pricing.loyalty_discount || 0) * 100) }}%
+                                    Попит: {{ Math.round((session.pricing.occupancy_ratio || 0) * 100) }}%
                                 </small>
                                 <small class="text-muted">Вільних місць: {{ session.available_seats }}</small>
                             </div>
@@ -1937,8 +1936,7 @@
             </p>
             <small v-if="session.pricing" class="text-muted d-block mt-2">
                 Часовий коеф.: x{{ session.pricing.time_multiplier }} |
-                Попит: x{{ session.pricing.demand_multiplier }} |
-                Лояльність: -{{ Math.round((session.pricing.loyalty_discount || 0) * 100) }}% ({{ session.pricing.loyalty_tier }})
+                Попит: x{{ session.pricing.demand_multiplier }}
             </small>
 
             <div v-if="userBookings.count > 0">

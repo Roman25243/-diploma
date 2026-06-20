@@ -104,34 +104,14 @@ def demand_multiplier(session):
     return 1.3, booked_ratio
 
 
-def loyalty_discount(user):
-    """Calculate user loyalty discount by bookings count."""
-    if not user or not user.is_authenticated:
-        return 0.0, 'guest', 0
-
-    bookings_count = Booking.query.filter_by(user_id=user.id).count()
-    if bookings_count >= 25:
-        return 0.12, 'platinum', bookings_count
-    if bookings_count >= 10:
-        return 0.08, 'gold', bookings_count
-    if bookings_count >= 5:
-        return 0.05, 'silver', bookings_count
-    return 0.0, 'basic', bookings_count
-
-
 def pricing_for_session(session, user=None, loyalty_data=None):
-    """Calculate dynamic price: time x demand x loyalty."""
+    """Calculate dynamic price: time x demand."""
     base_price = float(session.price or 0)
 
     t_mult, time_band = time_multiplier(session)
     d_mult, occupancy = demand_multiplier(session)
-    if loyalty_data is None:
-        loyalty_rate, loyalty_tier, loyalty_bookings = loyalty_discount(user)
-    else:
-        loyalty_rate, loyalty_tier, loyalty_bookings = loyalty_data
 
-    pre_discount = base_price * t_mult * d_mult
-    dynamic_price = round(pre_discount * (1 - loyalty_rate), 2)
+    dynamic_price = round(base_price * t_mult * d_mult, 2)
 
     return {
         'base_price': round(base_price, 2),
@@ -139,10 +119,7 @@ def pricing_for_session(session, user=None, loyalty_data=None):
         'time_multiplier': t_mult,
         'time_band': time_band,
         'demand_multiplier': d_mult,
-        'occupancy_ratio': round(occupancy, 4),
-        'loyalty_discount': loyalty_rate,
-        'loyalty_tier': loyalty_tier,
-        'loyalty_bookings': loyalty_bookings
+        'occupancy_ratio': round(occupancy, 4)
     }
 
 
