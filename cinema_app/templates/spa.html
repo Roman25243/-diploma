@@ -6,11 +6,9 @@
     <li class="nav-item"><a class="nav-link" href="/app/films"><i class="fas fa-ticket-alt"></i> Фільми</a></li>
     <li class="nav-item spa-auth-link spa-auth-only" style="display:none;"><a class="nav-link" href="/app/favorites"><i class="fas fa-heart"></i> Обрані</a></li>
     <li class="nav-item spa-auth-link spa-auth-only" style="display:none;"><a class="nav-link" href="/app/profile"><i class="fas fa-user"></i> Кабінет</a></li>
-    {% if current_user.is_authenticated and current_user.is_admin %}
-        <li class="nav-item spa-auth-link spa-admin-only" style="display:none;">
-            <a class="nav-link" href="/app/admin"><i class="fas fa-cog"></i> Адмін</a>
-        </li>
-    {% endif %}
+    <li class="nav-item spa-auth-link spa-admin-only" style="display:none;">
+        <a class="nav-link" href="/app/admin"><i class="fas fa-cog"></i> Адмін</a>
+    </li>
     <li class="nav-item spa-auth-link spa-auth-only" style="display:none;"><a class="nav-link" href="#" id="spa-logout-btn"><i class="fas fa-sign-out-alt"></i> Вихід</a></li>
     <li class="nav-item spa-auth-link spa-guest-only" style="display:none;"><a class="nav-link" href="/app/login"><i class="fas fa-sign-in-alt"></i> Вхід</a></li>
     <li class="nav-item spa-auth-link spa-guest-only" style="display:none;"><a class="nav-link" href="/app/register"><i class="fas fa-user-plus"></i> Реєстрація</a></li>
