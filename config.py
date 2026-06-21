@@ -67,18 +67,26 @@ class Config:
     STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET') or ''
 
     # Cross-origin frontend support (Cloudflare Pages -> Heroku API)
-    cors_origins = os.environ.get('CORS_ORIGINS')
-    if cors_origins:
-        CORS_ORIGINS = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
-    else:
-        CORS_ORIGINS = [
-            'http://localhost:3000',
-            'http://localhost:4173',
-            'http://127.0.0.1:5500',
-            'https://acd8cd15.diploma-1qj.pages.dev',
-            'https://4ff47227.diploma-1qj.pages.dev',
-            re.compile(r'^https://.*\.pages\.dev$'),
-        ]
+    cors_origins = os.environ.get('CORS_ORIGINS', '')
+    CORS_ORIGINS = [origin.strip() for origin in cors_origins.split(',') if origin.strip()]
+    CORS_ORIGINS.extend([
+        'http://localhost:3000',
+        'http://localhost:4173',
+        'http://127.0.0.1:5500',
+        'https://acd8cd15.diploma-1qj.pages.dev',
+        'https://4ff47227.diploma-1qj.pages.dev',
+        re.compile(r'^https://.*\.pages\.dev$'),
+    ])
+
+    deduped_origins: list[object] = []
+    seen_literals: set[str] = set()
+    for origin in CORS_ORIGINS:
+        if isinstance(origin, str):
+            if origin in seen_literals:
+                continue
+            seen_literals.add(origin)
+        deduped_origins.append(origin)
+    CORS_ORIGINS = deduped_origins
 
     SESSION_COOKIE_SAMESITE = os.environ.get('SESSION_COOKIE_SAMESITE') or 'Lax'
     SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() in ['true', 'on', '1']
