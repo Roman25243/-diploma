@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT / "frontend_dist"
 STATIC_SRC = ROOT / "static"
 STATIC_DST = OUTPUT_DIR / "static"
+HEADERS_FILE = OUTPUT_DIR / "_headers"
 
 API_BASE_URL = "https://cinema-book-backend-654c83941de1.herokuapp.com"
 
@@ -46,10 +47,25 @@ def sync_static_assets() -> None:
         shutil.rmtree(uploads_dir)
 
 
+def write_headers_file() -> None:
+    HEADERS_FILE.write_text(
+        "/index.html\n"
+        "  Cache-Control: no-store, no-cache, must-revalidate\n"
+        "\n"
+        "/app\n"
+        "  Cache-Control: no-store, no-cache, must-revalidate\n"
+        "\n"
+        "/app/*\n"
+        "  Cache-Control: no-store, no-cache, must-revalidate\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUTPUT_DIR / "index.html").write_text(build_index_html(), encoding="utf-8")
     sync_static_assets()
+    write_headers_file()
     print(f"Exported Cloudflare Pages site to {OUTPUT_DIR}")
 
 
