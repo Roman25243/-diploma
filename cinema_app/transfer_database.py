@@ -4,7 +4,7 @@ import argparse
 import os
 from typing import Iterable
 
-from sqlalchemy import create_engine, func, inspect, select, text
+from sqlalchemy import MetaData, Table, create_engine, func, inspect, select, text
 from sqlalchemy.engine import Connection
 
 from extensions import db
@@ -13,6 +13,14 @@ import models  # noqa: F401  # Ensure all tables are registered on db.metadata
 
 DEFAULT_SOURCE_DATABASE_URL = os.environ.get('SOURCE_DATABASE_URL') or 'sqlite:///instance/cinema.db'
 DEFAULT_TARGET_DATABASE_URL = os.environ.get('TARGET_DATABASE_URL') or os.environ.get('DATABASE_URL')
+
+
+def normalize_database_url(database_url: str | None) -> str | None:
+    if not database_url:
+        return database_url
+    if database_url.startswith('postgres://'):
+        return 'postgresql://' + database_url[len('postgres://'):]
+    return database_url
 
 
 def parse_args() -> argparse.Namespace:
@@ -52,11 +60,14 @@ def clear_target_tables(connection: Connection) -> None:
 
 
 def copy_table(source_connection: Connection, target_connection: Connection, table) -> int:
-    rows = source_connection.execute(select(table)).mappings().all()
+    source_table = Table(table.name, MetaData(), autoload_with=source_connection)
+    source_columns = set(source_table.columns.keys())
+    target_columns = [column.name for column in table.columns if column.name in source_columns]
+    rows = source_connection.execute(select(*[source_table.c[column_name] for column_name in target_columns])).mappings().all()
     if not rows:
         return 0
 
-    payload = [dict(row) for row in rows]
+    payload = [{column_name: row[column_name] for column_name in target_columns} for row in rows]
     target_connection.execute(table.insert(), payload)
     return len(payload)
 
@@ -92,12 +103,13 @@ def main() -> int:
     if not args.target:
         raise SystemExit('Target database URL is missing. Set DATABASE_URL or pass --target.')
 
-    source_engine = create_engine(args.source)
-    target_engine = create_engine(args.target)
+    source_engine = create_engine(normalize_database_url(args.source))
+    target_engine = create_engine(normalize_database_url(args.target))
 
     db.metadata.create_all(bind=target_engine)
 
     with source_engine.connect() as source_connection, target_engine.begin() as target_connection:
+        source_tables = set(inspect(source_connection).get_table_names())
         if args.replace_target:
             clear_target_tables(target_connection)
         elif target_has_data(target_connection):
@@ -107,6 +119,9 @@ def main() -> int:
 
         copied_rows = 0
         for table in db.metadata.sorted_tables:
+            if table.name not in source_tables:
+                print(f'{table.name}: skipped (not present in source)')
+                continue
             table_rows = copy_table(source_connection, target_connection, table)
             copied_rows += table_rows
             print(f'{table.name}: copied {table_rows} rows')
