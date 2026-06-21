@@ -24,9 +24,16 @@ def build_index_html() -> str:
         f'    window.__CINEMABOOK_API_BASE_URL__ = "{API_BASE_URL}";\n'
         '  </script>\n'
     )
-    marker = '<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>'
     if "window.__CINEMABOOK_API_BASE_URL__" not in html:
-        html = html.replace(marker, injection + marker, 1)
+        html = html.replace('<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>', injection + '<script src="/static/js/vue.global.js"></script>', 1)
+    html = html.replace(
+        '<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>',
+        '<script src="/static/js/vue.global.js"></script>',
+    )
+    html = html.replace(
+        '<script src="https://unpkg.com/vue-router@4/dist/vue-router.global.js"></script>',
+        '<script src="/static/js/vue-router.global.js"></script>',
+    )
     return html
 
 
@@ -34,6 +41,9 @@ def sync_static_assets() -> None:
     if STATIC_DST.exists():
         shutil.rmtree(STATIC_DST)
     shutil.copytree(STATIC_SRC, STATIC_DST, dirs_exist_ok=True)
+    uploads_dir = STATIC_DST / "uploads"
+    if uploads_dir.exists():
+        shutil.rmtree(uploads_dir)
 
 
 def main() -> None:
