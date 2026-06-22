@@ -1,4 +1,5 @@
 ﻿import os
+import uuid
 from functools import wraps
 from datetime import datetime
 
@@ -6,7 +7,6 @@ from flask import current_app, jsonify, request
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
-from werkzeug.utils import secure_filename
 
 from extensions import db
 from models import Booking, Film, Hall, Seat, Session, User
@@ -61,12 +61,12 @@ def _resolve_hall(hall_id_raw=None):
             return None, json_error(hall_error)
         hall = Hall.query.get(hall_id)
         if not hall:
-            return None, (jsonify({'success': False, 'error': 'Р—Р°Р» РЅРµ Р·РЅР°Р№РґРµРЅРѕ'}), 404)
+            return None, (jsonify({'success': False, 'error': 'Зал не знайдено'}), 404)
         return hall, None
 
     hall = Hall.query.order_by(Hall.id.asc()).first()
     if not hall:
-        return None, (jsonify({'success': False, 'error': 'РЎРїРѕС‡Р°С‚РєСѓ СЃС‚РІРѕСЂС–С‚СЊ Р·Р°Р»'}), 400)
+        return None, (jsonify({'success': False, 'error': 'Спочатку створіть зал'}), 400)
     return hall, None
 
 
@@ -77,10 +77,59 @@ def register_admin_routes(api_bp):
         @login_required
         def decorated(*args, **kwargs):
             if not current_user.is_admin:
-                return jsonify({'error': 'Р”РѕСЃС‚СѓРї Р·Р°Р±РѕСЂРѕРЅРµРЅРѕ'}), 403
+                return jsonify({'error': 'Доступ заборонено'}), 403
             return f(*args, **kwargs)
 
         return decorated
+
+    def _serialize_admin_film(film):
+        return {
+            'id': film.id,
+            'title': film.title,
+            'description': film.description,
+            'genre': film.genre,
+            'director': film.director,
+            'actors': film.actors,
+            'duration': film.duration,
+            'age_rating': film.age_rating,
+            'release_year': film.release_year,
+            'trailer': film.trailer,
+            'image': f'/static/uploads/{film.image}' if film.image else None,
+            'sessions_count': len(film.sessions),
+            'review_count': film.review_count(),
+            'average_rating': film.average_rating(),
+        }
+
+    def _save_film_image(image_file, existing_filename=None):
+        if not image_file or not getattr(image_file, 'filename', ''):
+            return existing_filename, None
+
+        filename = image_file.filename
+        if '.' not in filename:
+            return None, (jsonify({'success': False, 'error': 'Дозволені тільки зображення (jpg, jpeg, png, gif, webp)'}), 400)
+
+        ext = filename.rsplit('.', 1)[1].lower()
+        if ext not in {'jpg', 'jpeg', 'png', 'gif', 'webp'}:
+            return None, (jsonify({'success': False, 'error': 'Дозволені тільки зображення (jpg, jpeg, png, gif, webp)'}), 400)
+
+        upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
+        if not os.path.isabs(upload_folder):
+            upload_folder = os.path.join(current_app.root_path, upload_folder)
+
+        os.makedirs(upload_folder, exist_ok=True)
+
+        new_filename = f'{uuid.uuid4().hex}.{ext}'
+        image_file.save(os.path.join(upload_folder, new_filename))
+
+        if existing_filename and existing_filename != new_filename:
+            old_path = os.path.join(upload_folder, existing_filename)
+            if os.path.isfile(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass
+
+        return new_filename, None
 
     @api_bp.route('/admin/stats', methods=['GET'])
     @api_admin_required
@@ -234,7 +283,7 @@ def register_admin_routes(api_bp):
             return json_error(seats_error)
 
         if not name:
-            name = f'Р—Р°Р» {rows}x{seats_per_row}'
+            name = f'Зал {rows}x{seats_per_row}'
 
         base_name = name
         suffix = 2
@@ -246,7 +295,7 @@ def register_admin_routes(api_bp):
         db.session.add(hall)
         db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Р—Р°Р» СЃС‚РІРѕСЂРµРЅРѕ', 'hall': _serialize_hall(hall)}), 201
+        return jsonify({'success': True, 'message': 'Зал створено', 'hall': _serialize_hall(hall)}), 201
 
     @api_bp.route('/admin/halls/<int:hall_id>', methods=['PUT'])
     @api_admin_required
@@ -254,7 +303,7 @@ def register_admin_routes(api_bp):
         """Update hall name or dimensions when it has no sessions."""
         hall = Hall.query.get_or_404(hall_id)
         if len(hall.sessions) > 0:
-            return jsonify({'success': False, 'error': 'РќРµРјРѕР¶Р»РёРІРѕ Р·РјС–РЅРёС‚Рё Р·Р°Р», РїРѕРєРё РІ РЅСЊРѕРјСѓ С” СЃРµР°РЅСЃРё'}), 400
+            return jsonify({'success': False, 'error': 'РќРµРјРѕР¶Р»РёРІРѕ Р·РјС–РЅРёС‚Рё Р·Р°Р», РїРѕРєРё РІ РЅСЊРѕРјСѓ С” сеансРё'}), 400
 
         data, error_response = get_json_payload()
         if error_response:
@@ -270,7 +319,7 @@ def register_admin_routes(api_bp):
             return json_error(seats_error)
 
         if not name:
-            name = f'Р—Р°Р» {rows}x{seats_per_row}'
+            name = f'Зал {rows}x{seats_per_row}'
 
         base_name = name
         suffix = 2
@@ -283,7 +332,7 @@ def register_admin_routes(api_bp):
         hall.seats_per_row = seats_per_row
         db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Р—Р°Р» РѕРЅРѕРІР»РµРЅРѕ', 'hall': _serialize_hall(hall)})
+        return jsonify({'success': True, 'message': 'Зал оновлено', 'hall': _serialize_hall(hall)})
 
     @api_bp.route('/admin/halls/<int:hall_id>', methods=['DELETE'])
     @api_admin_required
@@ -292,11 +341,11 @@ def register_admin_routes(api_bp):
         hall = Hall.query.get_or_404(hall_id)
         sessions_count = len(hall.sessions) if hall.sessions is not None else 0
         if sessions_count:
-            return jsonify({'success': False, 'error': f'РќРµРјРѕР¶Р»РёРІРѕ РІРёРґР°Р»РёС‚Рё Р·Р°Р» вЂ” С–СЃРЅСѓС” {sessions_count} СЃРµР°РЅСЃС–РІ'}), 400
+            return jsonify({'success': False, 'error': f'РќРµРјРѕР¶Р»РёРІРѕ РІРёРґР°Р»РёС‚Рё Р·Р°Р» вЂ” С–СЃРЅСѓС” {sessions_count} сеансС–РІ'}), 400
 
         db.session.delete(hall)
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Р—Р°Р» РІРёРґР°Р»РµРЅРѕ'})
+        return jsonify({'success': True, 'message': 'Зал видалено'})
 
     @api_bp.route('/admin/films', methods=['GET'])
     @api_admin_required
@@ -308,132 +357,103 @@ def register_admin_routes(api_bp):
             selectinload(Film.favorited_by)
         ).order_by(Film.id.desc()).all()
 
-        return jsonify({'films': [{
-            'id': film.id,
-            'title': film.title,
-            'description': film.description,
-            'genre': film.genre,
-            'director': film.director,
-            'actors': film.actors,
-            'duration': film.duration,
-            'age_rating': film.age_rating,
-            'release_year': film.release_year,
-            'trailer': film.trailer,
-            'image': f'/static/uploads/{film.image}' if film.image else None,
-            'sessions_count': len(film.sessions),
-            'review_count': film.review_count(),
-            'average_rating': film.average_rating()
-        } for film in films]})
+        return jsonify({'films': [_serialize_admin_film(film) for film in films]})
 
     @api_bp.route('/admin/films', methods=['POST'])
     @api_admin_required
     def admin_film_create():
-        """Create film."""
-        title = (request.form.get('title') or '').strip()
-        description = (request.form.get('description') or '').strip()
+        """Create a new film with optional poster upload."""
+        form = request.form
 
+        title = (form.get('title') or '').strip()
+        description = (form.get('description') or '').strip()
         if not title:
-            return jsonify({'success': False, 'error': 'РќР°Р·РІР° РѕР±РѕРІ\'СЏР·РєРѕРІР°'}), 400
+            return jsonify({'success': False, 'error': 'Назва обов\'язкова'}), 400
         if not description or len(description) < 10:
-            return jsonify({'success': False, 'error': 'РћРїРёСЃ РјС–РЅС–РјСѓРј 10 СЃРёРјРІРѕР»С–РІ'}), 400
-
-        duration_raw = (request.form.get('duration') or '').strip()
-        release_year_raw = (request.form.get('release_year') or '').strip()
+            return jsonify({'success': False, 'error': 'Опис мінімум 10 символів'}), 400
 
         duration = None
+        duration_raw = (form.get('duration') or '').strip()
         if duration_raw:
-            duration, duration_error = parse_int_field(duration_raw, 'duration', 1, 600)
+            duration, duration_error = parse_int_field(duration_raw, 'duration', 1, 1000)
             if duration_error:
                 return json_error(duration_error)
 
         release_year = None
+        release_year_raw = (form.get('release_year') or '').strip()
         if release_year_raw:
-            current_year = datetime.now().year + 2
-            release_year, year_error = parse_int_field(release_year_raw, 'release_year', 1888, current_year)
-            if year_error:
-                return json_error(year_error)
+            release_year, release_year_error = parse_int_field(release_year_raw, 'release_year', 1888, 2100)
+            if release_year_error:
+                return json_error(release_year_error)
 
-        filename = None
-        if 'image' in request.files:
-            file = request.files['image']
-            if file and file.filename:
-                allowed = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
-                ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-                if ext not in allowed:
-                    return jsonify({'success': False, 'error': 'Р”РѕР·РІРѕР»РµРЅС– С‚С–Р»СЊРєРё Р·РѕР±СЂР°Р¶РµРЅРЅСЏ (jpg, png, gif, webp)'}), 400
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
+        image_filename, image_error = _save_film_image(request.files.get('image'))
+        if image_error:
+            return image_error
 
         film = Film(
             title=title,
             description=description,
-            genre=(request.form.get('genre') or '').strip() or None,
-            director=(request.form.get('director') or '').strip() or None,
-            actors=(request.form.get('actors') or '').strip() or None,
+            genre=(form.get('genre') or '').strip() or None,
+            director=(form.get('director') or '').strip() or None,
+            actors=(form.get('actors') or '').strip() or None,
             duration=duration,
-            age_rating=(request.form.get('age_rating') or '').strip() or None,
+            age_rating=(form.get('age_rating') or '').strip() or None,
             release_year=release_year,
-            trailer=(request.form.get('trailer') or '').strip() or None,
-            image=filename
+            trailer=(form.get('trailer') or '').strip() or None,
+            image=image_filename,
         )
+
         db.session.add(film)
         db.session.commit()
 
-        return jsonify({'success': True, 'message': 'Р¤С–Р»СЊРј РґРѕРґР°РЅРѕ', 'film_id': film.id}), 201
+        return jsonify({'success': True, 'message': 'Фільм додано', 'film': _serialize_admin_film(film)}), 201
 
     @api_bp.route('/admin/films/<int:film_id>', methods=['PUT'])
     @api_admin_required
     def admin_film_update(film_id):
-        """Update film."""
+        """Update a film and optionally replace its poster."""
         film = Film.query.get_or_404(film_id)
+        form = request.form
 
-        title = (request.form.get('title') or '').strip()
-        description = (request.form.get('description') or '').strip()
-
+        title = (form.get('title') or '').strip()
+        description = (form.get('description') or '').strip()
         if not title:
-            return jsonify({'success': False, 'error': 'РќР°Р·РІР° РѕР±РѕРІ\'СЏР·РєРѕРІР°'}), 400
+            return jsonify({'success': False, 'error': 'Назва обов\'язкова'}), 400
         if not description or len(description) < 10:
-            return jsonify({'success': False, 'error': 'РћРїРёСЃ РјС–РЅС–РјСѓРј 10 СЃРёРјРІРѕР»С–РІ'}), 400
-
-        duration_raw = (request.form.get('duration') or '').strip()
-        release_year_raw = (request.form.get('release_year') or '').strip()
+            return jsonify({'success': False, 'error': 'Опис мінімум 10 символів'}), 400
 
         duration = None
+        duration_raw = (form.get('duration') or '').strip()
         if duration_raw:
-            duration, duration_error = parse_int_field(duration_raw, 'duration', 1, 600)
+            duration, duration_error = parse_int_field(duration_raw, 'duration', 1, 1000)
             if duration_error:
                 return json_error(duration_error)
 
         release_year = None
+        release_year_raw = (form.get('release_year') or '').strip()
         if release_year_raw:
-            current_year = datetime.now().year + 2
-            release_year, year_error = parse_int_field(release_year_raw, 'release_year', 1888, current_year)
-            if year_error:
-                return json_error(year_error)
+            release_year, release_year_error = parse_int_field(release_year_raw, 'release_year', 1888, 2100)
+            if release_year_error:
+                return json_error(release_year_error)
+
+        image_filename, image_error = _save_film_image(request.files.get('image'), existing_filename=film.image)
+        if image_error:
+            return image_error
 
         film.title = title
         film.description = description
-        film.genre = (request.form.get('genre') or '').strip() or None
-        film.director = (request.form.get('director') or '').strip() or None
-        film.actors = (request.form.get('actors') or '').strip() or None
+        film.genre = (form.get('genre') or '').strip() or None
+        film.director = (form.get('director') or '').strip() or None
+        film.actors = (form.get('actors') or '').strip() or None
         film.duration = duration
-        film.age_rating = (request.form.get('age_rating') or '').strip() or None
+        film.age_rating = (form.get('age_rating') or '').strip() or None
         film.release_year = release_year
-        film.trailer = (request.form.get('trailer') or '').strip() or film.trailer
-
-        if 'image' in request.files:
-            file = request.files['image']
-            if file and file.filename:
-                allowed = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
-                ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-                if ext not in allowed:
-                    return jsonify({'success': False, 'error': 'Р”РѕР·РІРѕР»РµРЅС– С‚С–Р»СЊРєРё Р·РѕР±СЂР°Р¶РµРЅРЅСЏ'}), 400
-                filename = secure_filename(file.filename)
-                file.save(os.path.join(current_app.config['UPLOAD_FOLDER'], filename))
-                film.image = filename
+        film.trailer = (form.get('trailer') or '').strip() or None
+        film.image = image_filename
 
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Р¤С–Р»СЊРј РѕРЅРѕРІР»РµРЅРѕ'})
+
+        return jsonify({'success': True, 'message': 'Фільм оновлено', 'film': _serialize_admin_film(film)})
 
     @api_bp.route('/admin/films/<int:film_id>', methods=['DELETE'])
     @api_admin_required
@@ -442,7 +462,7 @@ def register_admin_routes(api_bp):
         film = Film.query.get_or_404(film_id)
         db.session.delete(film)
         db.session.commit()
-        return jsonify({'success': True, 'message': 'Р¤С–Р»СЊРј РІРёРґР°Р»РµРЅРѕ'})
+        return jsonify({'success': True, 'message': 'Фільм видалено'})
 
     @api_bp.route('/admin/sessions', methods=['GET'])
     @api_admin_required
@@ -456,7 +476,7 @@ def register_admin_routes(api_bp):
         return jsonify({'sessions': [{
             'id': s.id,
             'film_id': s.film_id,
-            'film_title': s.film.title if s.film else 'Р¤С–Р»СЊРј РІРёРґР°Р»РµРЅРѕ',
+            'film_title': s.film.title if s.film else 'Фільм видалено',
             'hall_id': s.hall_id,
             'hall_name': s.hall.name if s.hall else 'РќРµРІС–РґРѕРјРёР№ Р·Р°Р»',
             'start_time': s.start_time,
@@ -492,7 +512,7 @@ def register_admin_routes(api_bp):
 
         film = Film.query.get(film_id_value)
         if not film:
-            return jsonify({'success': False, 'error': 'Р¤С–Р»СЊРј РЅРµ Р·РЅР°Р№РґРµРЅРѕ'}), 404
+            return jsonify({'success': False, 'error': 'Фільм не знайдено'}), 404
 
         hall, hall_error = _resolve_hall(hall_id)
         if hall_error:
@@ -511,7 +531,7 @@ def register_admin_routes(api_bp):
 
         return jsonify({
             'success': True,
-            'message': f'РЎРµР°РЅСЃ СЃС‚РІРѕСЂРµРЅРѕ ({hall.capacity()} РјС–СЃС†СЊ)',
+            'message': f'Сеанс створено ({hall.capacity()} місць)',
             'session_id': session.id,
             'session': {
                 'id': session.id,
@@ -598,7 +618,7 @@ def register_admin_routes(api_bp):
         if requested_layout_changed and booked_count > 0:
             return jsonify({
                 'success': False,
-                'error': 'РќРµРјРѕР¶Р»РёРІРѕ Р·РјС–РЅРёС‚Рё СЂРѕР·РјС–СЂ Р·Р°Р»Сѓ, РїРѕРєРё С” Р·Р°Р±СЂРѕРЅСЊРѕРІР°РЅС– РјС–СЃС†СЏ. РЎРїРµСЂС€Сѓ СЃРєР°СЃСѓР№С‚Рµ Р±СЂРѕРЅСЋРІР°РЅРЅСЏ Р°Р±Рѕ СЃС‚РІРѕСЂС–С‚СЊ РЅРѕРІРёР№ СЃРµР°РЅСЃ.'
+                'error': 'РќРµРјРѕР¶Р»РёРІРѕ Р·РјС–РЅРёС‚Рё СЂРѕР·РјС–СЂ Р·Р°Р»Сѓ, РїРѕРєРё С” Р·Р°Р±СЂРѕРЅСЊРѕРІР°РЅС– РјС–СЃС†СЏ. РЎРїРµСЂС€Сѓ СЃРєР°СЃСѓР№С‚Рµ Р±СЂРѕРЅСЋРІР°РЅРЅСЏ Р°Р±Рѕ СЃС‚РІРѕСЂС–С‚СЊ РЅРѕРІРёР№ сеанс.'
             }), 400
 
         seat_map = {}
@@ -654,7 +674,7 @@ def register_admin_routes(api_bp):
 
         return jsonify({
             'success': True,
-            'message': 'РЎС…РµРјСѓ Р·Р°Р»Сѓ РѕРЅРѕРІР»РµРЅРѕ',
+            'message': 'Схему залу оновлено',
             'session_id': session.id,
             'layout': {
                 'rows': updated_rows,
@@ -672,7 +692,7 @@ def register_admin_routes(api_bp):
         session = Session.query.get_or_404(session_id)
 
         if session.status == 'cancelled':
-            return jsonify({'success': False, 'error': 'РЎРµР°РЅСЃ РІР¶Рµ СЃРєР°СЃРѕРІР°РЅРѕ'}), 400
+            return jsonify({'success': False, 'error': 'РЎРµР°РЅСЃ РІР¶Рµ скасовано'}), 400
 
         session.status = 'cancelled'
 
@@ -699,7 +719,7 @@ def register_admin_routes(api_bp):
 
         return jsonify({
             'success': True,
-            'message': f'РЎРµР°РЅСЃ СЃРєР°СЃРѕРІР°РЅРѕ. РџРѕРІС–РґРѕРјР»РµРЅРѕ {len(affected_users)} РєРѕСЂРёСЃС‚СѓРІР°С‡С–РІ.'
+            'message': f'Сеанс скасовано. Повідомлено {len(affected_users)} користувачів.'
         })
 
     @api_bp.route('/admin/calendar', methods=['GET'])
@@ -837,7 +857,7 @@ def register_admin_routes(api_bp):
 
         film = Film.query.get(film_id_value)
         if not film:
-            return jsonify({'success': False, 'error': 'Р¤С–Р»СЊРј РЅРµ Р·РЅР°Р№РґРµРЅРѕ'}), 404
+            return jsonify({'success': False, 'error': 'Фільм не знайдено'}), 404
 
         hall, hall_error = _resolve_hall(hall_id)
         if hall_error:
