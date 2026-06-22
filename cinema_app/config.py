@@ -56,7 +56,7 @@ class Config:
 
     # Online payments (phase 1)
     PAYMENT_ONLINE_ENABLED = os.environ.get('PAYMENT_ONLINE_ENABLED', 'true').lower() in ['true', 'on', '1']
-    PAYMENT_PROVIDER = os.environ.get('PAYMENT_PROVIDER') or 'mock'
+    PAYMENT_PROVIDER = os.environ.get('PAYMENT_PROVIDER') or ''
     PAYMENT_CURRENCY = os.environ.get('PAYMENT_CURRENCY') or 'UAH'
     PAYMENT_WEBHOOK_SECRET = os.environ.get('PAYMENT_WEBHOOK_SECRET') or ''
     PAYMENT_APP_BASE_URL = os.environ.get('PAYMENT_APP_BASE_URL') or 'http://127.0.0.1:5000'

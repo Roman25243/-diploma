@@ -1,6 +1,7 @@
 from datetime import datetime
 import importlib
 import secrets
+from urllib.parse import urljoin
 
 from flask import current_app, jsonify, redirect, request
 from flask_login import current_user, login_required
@@ -10,6 +11,33 @@ from models import Booking, PaymentTransaction
 from services.api_common import get_json_payload
 from services.ticket_service import issue_tickets_for_payment
 from utils import send_ticket_email
+
+
+def _normalize_base_url(value):
+    base_url = (value or '').strip()
+    return base_url.rstrip('/')
+
+
+def _build_absolute_url(base_url, path):
+    if not path:
+        return _normalize_base_url(base_url)
+    if path.startswith(('http://', 'https://')):
+        return path
+
+    normalized_base = _normalize_base_url(base_url)
+    normalized_path = path if path.startswith('/') else f'/{path}'
+    if not normalized_base:
+        return normalized_path
+    return urljoin(f'{normalized_base}/', normalized_path.lstrip('/'))
+
+
+def _resolve_payment_provider():
+    configured_provider = (current_app.config.get('PAYMENT_PROVIDER') or '').strip().lower()
+    if configured_provider:
+        return configured_provider
+    if current_app.config.get('STRIPE_SECRET_KEY'):
+        return 'stripe'
+    return 'mock'
 
 
 def _mark_payment_paid(payment):
@@ -52,6 +80,10 @@ def _create_stripe_checkout_session(payment, seats_count):
 
     stripe.api_key = stripe_secret_key
 
+    public_app_base = current_app.config.get('PAYMENT_APP_BASE_URL') or request.host_url
+    success_url = _build_absolute_url(public_app_base, current_app.config.get('PAYMENT_SUCCESS_URL') or '/app/profile?payment=success')
+    cancel_url = _build_absolute_url(public_app_base, current_app.config.get('PAYMENT_CANCEL_URL') or '/app/profile?payment=cancel')
+
     try:
         checkout_session = stripe.checkout.Session.create(
             mode='payment',
@@ -66,8 +98,8 @@ def _create_stripe_checkout_session(payment, seats_count):
                 },
                 'quantity': 1,
             }],
-            success_url=current_app.config.get('PAYMENT_SUCCESS_URL'),
-            cancel_url=current_app.config.get('PAYMENT_CANCEL_URL'),
+            success_url=success_url,
+            cancel_url=cancel_url,
             metadata={
                 'provider_order_id': payment.provider_order_id,
                 'payment_id': str(payment.id),
@@ -177,7 +209,7 @@ def register_payments_routes(api_bp):
             amount=total_amount,
             currency=current_app.config.get('PAYMENT_CURRENCY', 'UAH'),
             status='pending',
-            provider=(current_app.config.get('PAYMENT_PROVIDER') or 'mock').lower(),
+            provider=_resolve_payment_provider(),
             provider_order_id=provider_order_id,
             checkout_token=checkout_token
         )
@@ -196,7 +228,7 @@ def register_payments_routes(api_bp):
                 db.session.rollback()
                 return jsonify({'success': False, 'error': stripe_error}), 500
         else:
-            checkout_url = f"/api/payments/mock/checkout/{checkout_token}"
+            checkout_url = _build_absolute_url(request.host_url, f'/api/payments/mock/checkout/{checkout_token}')
 
         db.session.commit()
 
@@ -224,13 +256,17 @@ def register_payments_routes(api_bp):
         for ticket in issued_tickets:
             send_ticket_email(ticket.booking.user, ticket, current_app._get_current_object())
 
-        return redirect('/app/profile?payment=success')
+        success_url = current_app.config.get('PAYMENT_SUCCESS_URL') or _build_absolute_url(
+            current_app.config.get('PAYMENT_APP_BASE_URL') or request.host_url,
+            '/app/profile?payment=success'
+        )
+        return redirect(success_url)
 
     @api_bp.route('/payments/webhook', methods=['POST'])
     @csrf.exempt
     def payment_webhook():
         """Webhook endpoint for payment providers."""
-        provider = (current_app.config.get('PAYMENT_PROVIDER') or 'mock').lower()
+        provider = _resolve_payment_provider()
         if provider == 'stripe':
             return _handle_stripe_webhook()
 
