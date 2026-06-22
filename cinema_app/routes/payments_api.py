@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import importlib
 import secrets
 from urllib.parse import urljoin
@@ -65,6 +65,61 @@ def _mark_payment_failed(payment):
             booking.payment_status = 'failed'
             booking.seat.status = 'free'
             db.session.delete(booking)
+
+
+def _release_expired_pending_bookings_global():
+    """Release expired pending bookings across all sessions.
+
+    Returns number of bookings released.
+    """
+    timeout_minutes = current_app.config.get('PAYMENT_RESERVATION_MINUTES', 15)
+    if not isinstance(timeout_minutes, int) or timeout_minutes <= 0:
+        return 0
+
+    cutoff = datetime.utcnow() - timedelta(minutes=timeout_minutes)
+
+    # Bookings linked to pending payments older than cutoff
+    expired_with_payment = Booking.query.join(Seat).join(
+        PaymentTransaction,
+        Booking.payment_id == PaymentTransaction.id
+    ).filter(
+        Seat.status == 'booked',
+        Booking.payment_status.in_(['pending', 'unpaid']),
+        PaymentTransaction.status == 'pending',
+        PaymentTransaction.created_at <= cutoff
+    ).all()
+
+    # Bookings without payment_id (unpaid) older than cutoff
+    expired_without_payment = Booking.query.join(Seat).filter(
+        Seat.status == 'booked',
+        Booking.payment_id.is_(None),
+        Booking.payment_status.in_(['unpaid', 'pending']),
+        Booking.created_at <= cutoff
+    ).all()
+
+    expired_bookings = expired_with_payment + expired_without_payment
+
+    if not expired_bookings:
+        return 0
+
+    touched_payments = set()
+    for booking in expired_bookings:
+        try:
+            booking.seat.status = 'free'
+            if booking.payment_id:
+                touched_payments.add(booking.payment_id)
+            db.session.delete(booking)
+        except Exception:
+            # best-effort: skip problematic rows
+            continue
+
+    if touched_payments:
+        PaymentTransaction.query.filter(
+            PaymentTransaction.id.in_(touched_payments),
+            PaymentTransaction.status == 'pending'
+        ).update({'status': 'failed'}, synchronize_session='fetch')
+
+    return len(expired_bookings)
 
 
 def _create_stripe_checkout_session(payment, seats_count):

@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from flask import jsonify, request, url_for as flask_url_for
+from flask import jsonify, request, url_for as flask_url_for, current_app
 
 from extensions import db
 from models import Booking, Seat
@@ -130,7 +130,7 @@ def film_to_dict(film, user=None):
         'id': film.id,
         'title': film.title,
         'description': film.description,
-        'image': flask_url_for('static', filename='uploads/' + film.image) if film.image else None,
+        'image': image_url_for(film.image) if film.image else None,
         'trailer': film.trailer,
         'genre': film.genre,
         'director': film.director,
@@ -142,6 +142,28 @@ def film_to_dict(film, user=None):
         'review_count': film.review_count(),
         'is_favorite': film.is_favorited_by(user) if is_auth else False
     }
+
+
+def image_url_for(image_key):
+    """Return absolute URL for image key which can be a Cloudinary public_id, absolute URL, or local filename."""
+    if not image_key:
+        return None
+
+    # If already an absolute URL
+    if image_key.startswith('http://') or image_key.startswith('https://') or '://' in image_key:
+        return image_key
+
+    # If Cloudinary configured, build cloudinary URL from public_id
+    if current_app.config.get('CLOUDINARY_CLOUD_NAME'):
+        try:
+            import cloudinary.utils
+            url, _ = cloudinary.utils.cloudinary_url(image_key, secure=True)
+            return url
+        except Exception:
+            pass
+
+    # Fallback to local static uploads
+    return flask_url_for('static', filename='uploads/' + image_key)
 
 
 def create_seats_for_session(session_id, rows=10, seats_per_row=12, hall=None):

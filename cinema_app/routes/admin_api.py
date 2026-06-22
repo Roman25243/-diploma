@@ -1,5 +1,7 @@
 ﻿import os
 import uuid
+import cloudinary
+import cloudinary.uploader
 from functools import wraps
 from datetime import datetime
 
@@ -94,7 +96,8 @@ def register_admin_routes(api_bp):
             'age_rating': film.age_rating,
             'release_year': film.release_year,
             'trailer': film.trailer,
-            'image': f'/static/uploads/{film.image}' if film.image else None,
+            'image': None,
+            'image': (cloudinary.utils.cloudinary_url(film.image, secure=True)[0] if current_app.config.get('CLOUDINARY_CLOUD_NAME') and film.image else (f'/static/uploads/{film.image}' if film.image else None)),
             'sessions_count': len(film.sessions),
             'review_count': film.review_count(),
             'average_rating': film.average_rating(),
@@ -112,6 +115,32 @@ def register_admin_routes(api_bp):
         if ext not in {'jpg', 'jpeg', 'png', 'gif', 'webp'}:
             return None, (jsonify({'success': False, 'error': 'Дозволені тільки зображення (jpg, jpeg, png, gif, webp)'}), 400)
 
+        # If Cloudinary configured, upload to Cloudinary
+        if current_app.config.get('CLOUDINARY_CLOUD_NAME'):
+            try:
+                cloudinary.config(
+                    cloud_name=current_app.config.get('CLOUDINARY_CLOUD_NAME'),
+                    api_key=current_app.config.get('CLOUDINARY_API_KEY'),
+                    api_secret=current_app.config.get('CLOUDINARY_API_SECRET'),
+                    secure=True,
+                )
+                public_id = f'posters/{uuid.uuid4().hex}'
+                # image_file is Werkzeug FileStorage; pass fileobj
+                result = cloudinary.uploader.upload(image_file, public_id=public_id, resource_type='image')
+                new_public_id = result.get('public_id')
+
+                # remove old image from Cloudinary if present
+                if existing_filename and existing_filename != new_public_id:
+                    try:
+                        cloudinary.uploader.destroy(existing_filename)
+                    except Exception:
+                        pass
+
+                return new_public_id, None
+            except Exception as exc:
+                return None, (jsonify({'success': False, 'error': f'Не вдалося завантажити зображення: {exc}'}), 500)
+
+        # Fallback: save locally
         upload_folder = current_app.config.get('UPLOAD_FOLDER', 'static/uploads')
         if not os.path.isabs(upload_folder):
             upload_folder = os.path.join(current_app.root_path, upload_folder)

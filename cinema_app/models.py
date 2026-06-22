@@ -203,6 +203,7 @@ class Booking(db.Model):
     seat_id = db.Column(db.Integer, db.ForeignKey('seat.id'), index=True)
     payment_id = db.Column(db.Integer, db.ForeignKey('payment_transaction.id'), index=True, nullable=True)
     payment_status = db.Column(db.String(20), default='unpaid', index=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     ticket = db.relationship('Ticket', backref='booking', uselist=False, lazy='select', cascade='all, delete-orphan')
     
     __table_args__ = (

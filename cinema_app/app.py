@@ -88,3 +88,16 @@ if __name__ == '__main__':
     debug_mode = os.environ.get('DEBUG', 'false').lower() in ['true', 'on', '1']
     app.run(host='0.0.0.0', port=port, debug=debug_mode)
 
+
+# CLI команда для періодичного очищення прострочених бронювань
+@app.cli.command('cleanup_expired_bookings')
+def cleanup_expired_bookings():
+    """Release expired pending bookings (for scheduler)."""
+    from routes.payments_api import _release_expired_pending_bookings_global
+
+    with app.app_context():
+        released = _release_expired_pending_bookings_global()
+        if released:
+            db.session.commit()
+        print(f'Released {released} expired bookings')
+

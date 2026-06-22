@@ -11,6 +11,7 @@ from services.api_common import (
     is_session_in_past,
     parse_int_field,
     pricing_for_session,
+    image_url_for,
 )
 
 
@@ -40,7 +41,7 @@ def register_films_routes(api_bp):
                 'id': f.id,
                 'title': f.title,
                 'description': f.description,
-                'image': flask_url_for('static', filename='uploads/' + f.image) if f.image else None,
+                'image': image_url_for(f.image) if f.image else None,
                 'genre': f.genre,
                 'duration': f.duration,
                 'release_year': f.release_year,

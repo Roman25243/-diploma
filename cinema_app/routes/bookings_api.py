@@ -11,6 +11,7 @@ from services.api_common import (
     get_json_payload,
     is_session_in_past,
     pricing_for_session,
+    image_url_for,
 )
 
 
@@ -112,6 +113,11 @@ def register_bookings_routes(api_bp):
         data, error_response = get_json_payload()
         if error_response:
             return error_response
+
+        # Перед бронюванням звільняємо прострочені pending бронювання для сеансу
+        released = _release_expired_pending_bookings(session_id)
+        if released:
+            db.session.commit()
 
         selected_seat_ids = data.get('seat_ids', [])
         if not isinstance(selected_seat_ids, list):
@@ -227,7 +233,7 @@ def register_bookings_routes(api_bp):
                 'id': b.id,
                 'film_id': b.seat.session.film.id,
                 'film_title': b.seat.session.film.title,
-                'film_image': flask_url_for('static', filename='uploads/' + b.seat.session.film.image) if b.seat.session.film.image else None,
+                'film_image': image_url_for(b.seat.session.film.image) if b.seat.session.film.image else None,
                 'session_time': b.seat.session.start_time,
                 'seat_row': b.seat.row,
                 'seat_number': b.seat.number,
